@@ -1,0 +1,18 @@
+services:
+  entity_json_speed.file:
+    class: Drupal\entity_json_speed\FileService
+    arguments:
+      - '@file_system'
+      - '@entity_type.manager'
+  entity_json_speed.global_entities:
+    class: Drupal\entity_json_speed\Entities\GlobalEntities
+    arguments:
+      - '@serializer'
+      - '@entity_type.manager'
+      - '@entity_json_speed.file'
+  entity_json_speed.alias:
+    class: Drupal\entity_json_speed\Entities\Alias
+    arguments:
+      - '@serializer'
+      - '@entity_type.manager'
+      - '@entity_json_speed.file'

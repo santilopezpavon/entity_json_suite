@@ -1,0 +1,49 @@
+<?php
+
+use Drupal\Core\Entity\EntityInterface;
+
+
+function entity_json_speed_preprocess_html(&$variables) {
+  /*$node = \Drupal::entityTypeManager()->getStorage('node')->load(1675);
+  \Drupal::service("entity_json_speed.global_entities")->delete($node);*/
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function entity_json_speed_entity_insert(EntityInterface $entity) {
+  // Export entity to JSON using the service.
+  /*$json_exporter = \Drupal::service('entity_json_speed.json_exporter');
+  $json_exporter->exportEntityToJson($entity);*/
+
+  \Drupal::service("entity_json_speed.global_entities")->export($entity);
+  \Drupal::service("entity_json_speed.alias")->export($entity);
+
+
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function entity_json_speed_entity_update(EntityInterface $entity) {
+  // Export entity to JSON using the service.
+  /*$json_exporter = \Drupal::service('entity_json_speed.json_exporter');
+    $json_exporter->exportEntityToJson($entity);*/
+    \Drupal::service("entity_json_speed.global_entities")->export($entity);
+    \Drupal::service("entity_json_speed.alias")->export($entity);
+
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function entity_json_speed_entity_delete(EntityInterface $entity) {
+  // Delete JSON file corresponding to the entity using the service.
+  /*$json_exporter = \Drupal::service('entity_json_speed.json_exporter');
+  $json_exporter->deleteJsonFile($entity);*/
+  \Drupal::service("entity_json_speed.global_entities")->delete($entity);
+  \Drupal::service("entity_json_speed.alias")->delete($entity);
+
+}
+
+
