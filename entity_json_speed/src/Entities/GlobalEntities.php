@@ -14,6 +14,7 @@ class GlobalEntities {
   protected $serializer;
   protected $entityTypeManager;
   protected $file_service;
+  protected $entity_types;
 
   /**
    * Constructor.
@@ -22,9 +23,18 @@ class GlobalEntities {
     $this->serializer = $serializer;
     $this->entityTypeManager = $entityTypeManager;
     $this->file_service = $file_service;
+    $this->entity_types = \Drupal::config('entity_json_speed.settings')->get('content_types_array');
+
+    if(!is_array($this->entity_types)) {
+      $this->entity_types = [];
+    }
   }
 
   public function export($entity) {
+    
+    if(!in_array($entity->getEntityTypeId() , $this->entity_types)) {
+      return NULL;
+    }
     $path_entity = $this->path($entity);
     $json_data = $this->serializer->serialize($entity, 'json', []);
     $json_data_array = json_decode($json_data, true);
@@ -35,6 +45,9 @@ class GlobalEntities {
   }
 
   public function delete($entity) {
+    if(!in_array($entity->getEntityTypeId() , $this->entity_types)) {
+      return NULL;
+    }
     $path_entity = $this->path($entity);
     $this->file_service->deleteFile($path_entity);
   }
