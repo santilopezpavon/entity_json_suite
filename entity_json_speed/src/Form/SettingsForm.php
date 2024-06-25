@@ -29,6 +29,7 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'fieldset',
       '#title' => $this->t('Base Configuration'),
     );   
+    
     $default_content_type = $config->get('content_types');
     if($default_content_type == null) {
       $default_content_type = [];

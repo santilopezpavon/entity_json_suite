@@ -14,7 +14,7 @@ class GlobalEntities {
   protected $serializer;
   protected $entityTypeManager;
   protected $file_service;
-  protected $entity_types;
+  public $entity_types;
 
   /**
    * Constructor.
@@ -30,7 +30,7 @@ class GlobalEntities {
     }
   }
 
-  public function export($entity) {
+  public function export($entity, $replace_file = TRUE) {
     
     if(!in_array($entity->getEntityTypeId() , $this->entity_types)) {
       return NULL;
@@ -41,7 +41,7 @@ class GlobalEntities {
 
     $json_data_array = $this->removeUnwantedProperties($json_data_array);
     $json_data = json_encode($json_data_array);
-    $this->file_service->saveData($path_entity, $json_data);
+    $this->file_service->saveData($path_entity, $json_data, $replace_file);
   }
 
   public function delete($entity) {

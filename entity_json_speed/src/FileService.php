@@ -22,11 +22,14 @@ class FileService {
     $this->entityTypeManager = $entityTypeManager;
   }
 
-  public function saveData($path, $data) {
+  public function saveData($path, $data, $replace_file = TRUE) {
     $path = $this->getPath($path);
     $directory = dirname($path);
-    $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
-    $this->fileSystem->saveData($data, $path, FileSystemInterface::EXISTS_REPLACE);
+
+    if($replace_file === TRUE || !file_exists($path)) {
+      $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
+      $this->fileSystem->saveData($data, $path, FileSystemInterface::EXISTS_REPLACE);
+    }
   }
 
   public function deleteFile($path) {
@@ -36,6 +39,10 @@ class FileService {
     if (file_exists($path)) {
         $this->fileSystem->delete($path);
     } 
+  }
+
+  public function deleteAllFiles() {
+    $this->fileSystem->deleteRecursive('public://json_exports/');
   }
 
   private function getPath($path) {
