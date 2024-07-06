@@ -31,7 +31,12 @@ class Alias {
     $alias_info = $this->getAliasInfo($entity);
 
     $alias_entity_prior = $entity->original;
+
     $alias_info_prior = $this->getAliasInfo($alias_entity_prior);
+    if(!empty($alias_info_prior)) {
+      $path_alias_prior = $alias_info_prior["alias_path"];
+      $this->file_service->deleteFile($path_alias_prior);  
+    }
 
     
     $entity = $alias_info["entity"];
@@ -39,10 +44,8 @@ class Alias {
     $path_alias = $alias_info["alias_path"];
     $this->file_service->saveData($path_alias, json_encode($file_data));
 
-    $path_alias_prior = $alias_info_prior["alias_path"];
-    $this->file_service->deleteFile($path_alias_prior);
 
-    // \Drupal::service("entity_json_speed.global_entities")->export($entity);
+    \Drupal::service("entity_json_speed.global_entities")->export($entity);
   }
 
   public function delete($entity) {
@@ -58,15 +61,7 @@ class Alias {
   }
 
   public function path($entity) {
-    $langcode = 'neutral';
-
-    try {
-        $langcode = $entity->language()->getId();
-    } catch (\Throwable $th) {
-    }    
-  
-    $directory = "/" . $langcode . '/' . $entity->getEntityTypeId() . '/' . $entity->bundle();
-    return  $directory . '/' . $entity->id() . '.json';  
+    return $this->file_service->getPathFileEntity($entity);
   }
 
   public function getAliasInfo($entity) {

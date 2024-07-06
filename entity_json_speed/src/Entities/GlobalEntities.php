@@ -44,10 +44,16 @@ class GlobalEntities {
     $json_data_array = json_decode($json_data, true);
 
     $json_data_array = $this->removeUnwantedProperties($json_data_array);
-    $json_data_array["translation_info"] = $this->getTranslationData($entity);
+
+    $configuration = [];
+    $configuration["translation_info"] = $this->getTranslationData($entity);
+
+    $file_config = $this->file_service->getPathFileEntityConfig($entity);
 
     $json_data = json_encode($json_data_array);
     $this->file_service->saveData($path_entity, $json_data, $replace_file);
+    $this->file_service->saveData($file_config, json_encode($configuration), TRUE);
+
   }
 
   public function delete($entity) {
@@ -59,15 +65,7 @@ class GlobalEntities {
   }
 
   public function path($entity) {
-    $langcode = 'neutral';
-
-    try {
-        $langcode = $entity->language()->getId();
-    } catch (\Throwable $th) {
-    }    
-  
-    $directory = "/" . $langcode . '/' . $entity->getEntityTypeId() . '/' . $entity->bundle();
-    return  $directory . '/' . $entity->id() . '.json';  
+    return $this->file_service->getPathFileEntity($entity);
   }
 
   protected function getTranslationData($entity) {

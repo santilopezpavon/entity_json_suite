@@ -49,6 +49,32 @@ class FileService {
     return 'public://json_exports/' . $path;
   }
 
+  public function getPathFileEntity($entity) {
+    $paths = $this->getPathsFilesEntity($entity);
+    return $paths["path_file_current"];
+  }
+  public function getPathFileEntityConfig($entity) {
+    $paths = $this->getPathsFilesEntity($entity);
+    return $paths["path_file_config"];
+  }
+
+
+  public function getPathsFilesEntity($entity) {
+    $langcode = 'neutral';
+    try {
+        $langcode = $entity->language()->getId();
+    } catch (\Throwable $th) {}  
+
+    $directory = "/" . $entity->getEntityTypeId() . '/' . $entity->bundle();
+    $path_file_current =  $directory . '/' . $entity->id() . "/" . $langcode . '.json'; 
+    $path_file_config =  $directory . '/' . $entity->id() . "/" . 'config' . '.json'; 
+
+    return [
+      "path_file_current" => $path_file_current,
+      "path_file_config" => $path_file_config
+    ];  
+  }
+
 
 
 
