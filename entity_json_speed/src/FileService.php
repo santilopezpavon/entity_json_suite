@@ -34,7 +34,6 @@ class FileService {
 
   public function deleteFile($path) {
     $path = $this->getPath($path);
-    dump($path);
 
     if (file_exists($path)) {
         $this->fileSystem->delete($path);

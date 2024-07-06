@@ -10,6 +10,8 @@ services:
       - '@serializer'
       - '@entity_type.manager'
       - '@entity_json_speed.file'
+      - '@path_alias.manager'
+      - '@language_manager'
   entity_json_speed.alias:
     class: Drupal\entity_json_speed\Entities\Alias
     arguments:

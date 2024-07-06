@@ -30,11 +30,19 @@ class Alias {
     }
     $alias_info = $this->getAliasInfo($entity);
 
+    $alias_entity_prior = $entity->original;
+    $alias_info_prior = $this->getAliasInfo($alias_entity_prior);
+
+    
     $entity = $alias_info["entity"];
     $file_data = $alias_info["file_data"];
     $path_alias = $alias_info["alias_path"];
     $this->file_service->saveData($path_alias, json_encode($file_data));
-    //\Drupal::service("entity_json_speed.global_entities")->export($entity);
+
+    $path_alias_prior = $alias_info_prior["alias_path"];
+    $this->file_service->deleteFile($path_alias_prior);
+
+    // \Drupal::service("entity_json_speed.global_entities")->export($entity);
   }
 
   public function delete($entity) {
@@ -45,7 +53,7 @@ class Alias {
     $path_alias = $alias_info["alias_path"];
 
 
-    //$this->file_service->deleteFile($path_alias);
+    $this->file_service->deleteFile($path_alias);
 
   }
 
