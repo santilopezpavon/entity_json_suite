@@ -34,7 +34,7 @@ class Alias {
     $file_data = $alias_info["file_data"];
     $path_alias = $alias_info["alias_path"];
     $this->file_service->saveData($path_alias, json_encode($file_data));
-    \Drupal::service("entity_json_speed.global_entities")->export($entity);
+    //\Drupal::service("entity_json_speed.global_entities")->export($entity);
   }
 
   public function delete($entity) {
@@ -45,7 +45,7 @@ class Alias {
     $path_alias = $alias_info["alias_path"];
 
 
-    $this->file_service->deleteFile($path_alias);
+    //$this->file_service->deleteFile($path_alias);
 
   }
 

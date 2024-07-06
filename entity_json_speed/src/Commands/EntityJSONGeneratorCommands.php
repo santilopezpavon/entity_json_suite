@@ -44,19 +44,31 @@ class EntityJSONGeneratorCommands extends DrushCommands {
    * @description Generates JSON files for specified entities.
    */
   public function generateFiles() {
+    
+    // Get all entity types to JSON serialize.
     $all_entity_type = $this->global_entities->entity_types;
+    
+    if(empty($all_entity_type)) {
+      throw new Exception("Error there aren't entity types for export configurates, please configure some one.", 1);      
+    }
+
     foreach ($all_entity_type as $entity_type) {
+      // Get the IDs of current entity types
       $storage = \Drupal::entityTypeManager()->getStorage($entity_type);
       $entity_ids = $storage->getQuery()->execute();
+
       foreach ($entity_ids as $entity_id) {
+        // Load entity
         $entity = $storage->load($entity_id);
         if(method_exists($entity, "getTranslationLanguages")) {
+          // If entity has in multiple languages.
           $languages = $entity->getTranslationLanguages();
           foreach ($languages as $id => $language) {
             $translation = $entity->getTranslation($id);
             $this->global_entities->export($translation, FALSE);
           }  
         } else {
+          // If entity is not in multiple langs.
           $this->global_entities->export($entity, FALSE);
         }
       }
