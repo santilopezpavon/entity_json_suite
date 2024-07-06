@@ -8,8 +8,6 @@ use Drupal\Core\Entity\EntityInterface;
 function entity_json_speed_entity_insert(EntityInterface $entity) {
   \Drupal::service("entity_json_speed.global_entities")->export($entity);
   \Drupal::service("entity_json_speed.alias")->export($entity);
-
-
 }
 
 /**
@@ -18,8 +16,21 @@ function entity_json_speed_entity_insert(EntityInterface $entity) {
 function entity_json_speed_entity_update(EntityInterface $entity) {
     \Drupal::service("entity_json_speed.global_entities")->export($entity);
     \Drupal::service("entity_json_speed.alias")->export($entity);
-
 }
+
+/**
+ * Implements hook_entity_translation_delete().
+ *
+ * Deletes the entity cache when a translation of an entity is deleted.
+ *
+ * @param \Drupal\Core\Entity\EntityInterface $translation
+ *   The translation entity that was deleted.
+ */
+function entity_json_speed_entity_entity_translation_delete(EntityInterface $translation) {
+  \Drupal::service("entity_json_speed.global_entities")->delete($entity);
+  \Drupal::service("entity_json_speed.alias")->delete($entity);
+}
+
 
 /**
  * Implements hook_entity_delete().
