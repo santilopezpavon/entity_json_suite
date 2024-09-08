@@ -77,7 +77,7 @@ class GlobalEntities {
 
     foreach ($languages as $language) {
       $langcode = $language->getId();
-      if ($entity->hasTranslation($langcode)) {
+      if (method_exists($entity, "hasTranslation") && $entity->hasTranslation($langcode)) {
         array_push($entity_langs, $langcode);
         $translated_entity = $entity->getTranslation($langcode);
         $path = "/{$entity_type}/{$entity_id}";
