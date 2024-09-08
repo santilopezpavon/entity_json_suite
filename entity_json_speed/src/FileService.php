@@ -13,6 +13,7 @@ class FileService {
 
   protected $fileSystem;
   protected $entityTypeManager;
+  protected $files_dir;
 
   /**
    * Constructor.
@@ -20,6 +21,7 @@ class FileService {
   public function __construct($fileSystem, $entityTypeManager) {
     $this->fileSystem = $fileSystem;
     $this->entityTypeManager = $entityTypeManager;
+    $this->files_dir = 'public://json_exports/';
   }
 
   public function saveData($path, $data, $replace_file = TRUE) {
@@ -41,12 +43,12 @@ class FileService {
   }
 
   public function deleteAllFiles() {
-    $this->fileSystem->deleteRecursive('public://json_exports/');
+    $this->fileSystem->deleteRecursive($this->files_dir);
   }
 
   private function getPath($path) {
     $path = preg_replace('#/+#', '/', $path);
-    return 'public://json_exports/' . $path;
+    return $this->files_dir . $path;
   }
 
   public function getPathFileEntity($entity) {
