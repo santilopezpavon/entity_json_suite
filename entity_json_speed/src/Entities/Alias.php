@@ -53,9 +53,19 @@ class Alias {
     if($entity->getEntityTypeId() != 'path_alias') {
         return NULL;
     }
+
     $alias_info = $this->getAliasInfo($entity);
     $path_alias = $alias_info["alias_path"];
 
+/*
+    dump($entity);
+    $alias_info = $this->getAliasInfo($entity);
+    $path_alias = $alias_info["alias_path"];
+    dump($alias_info);
+    dump($path_alias);
+    $lang = $entity->language()->getId();
+    dump($lang);
+    exit();*/
 
     $this->file_service->deleteFile($path_alias);
 
@@ -102,20 +112,20 @@ class Alias {
    
     $source_path = $entity->getPath();
     $array_explode = explode("/", $source_path);
-    $lang = $entity->language()->getId();
-  
+    $lang_origin = $entity->language()->getId();
+    
     $storage = $this->entityTypeManager->getStorage($array_explode[1]);
     $entity = $storage->load($array_explode[2]);
     if(!empty($entity)) {
-        if($entity->hasTranslation($lang)) {
-            $entity = $entity->getTranslation($lang);
+        if(method_exists($entity, "hasTranslation") && $entity->hasTranslation($lang_origin)) {
+            $entity = $entity->getTranslation($lang_origin);
         }
     }
-  
+    
     return [
       "alias" => $alias,
       "source_path" => $source_path,
-      "lang" => $entity->language()->getId(),
+      "lang" => $lang_origin,
       "target_type" => $array_explode[1],
       "target_id" => $array_explode[2],
       "entity" => $entity

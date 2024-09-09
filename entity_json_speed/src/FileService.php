@@ -24,6 +24,7 @@ class FileService {
     $this->files_dir = 'public://json_exports/';
   }
 
+  
   public function saveData($path, $data, $replace_file = TRUE) {
     $path = $this->getPath($path);
     $directory = dirname($path);
@@ -33,6 +34,7 @@ class FileService {
       $this->fileSystem->saveData($data, $path, FileSystemInterface::EXISTS_REPLACE);
     }
   }
+
 
   public function deleteFile($path) {
     $path = $this->getPath($path);
@@ -47,7 +49,10 @@ class FileService {
   }
 
   private function getPath($path) {
-    $path = preg_replace('#/+#', '/', $path);
+    if ($path[0] === '/') {
+      $path = substr($path, 1);
+    }
+    $path = preg_replace('#/+#', '/', $path);    
     return $this->files_dir . $path;
   }
 
@@ -73,7 +78,9 @@ class FileService {
 
     return [
       "path_file_current" => $path_file_current,
-      "path_file_config" => $path_file_config
+      "path_file_config" => $path_file_config,
+      "complete_path_file_current" => $this->getPath($path_file_current),
+      "complete_path_file_config" => $this->getPath($path_file_config)
     ];  
   }
 

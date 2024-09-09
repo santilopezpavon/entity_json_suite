@@ -86,4 +86,21 @@ class EntityJSONGeneratorCommands extends DrushCommands {
     $this->file_system->deleteAllFiles();
   }
 
+
+   /**
+   * Test functionalities.
+   *
+   * @command entity-json-speed:test
+   * @aliases ejt
+   */
+
+   public function test() {
+    dump("Init Tests");
+    \Drupal::service("entity_json_speed.test_service")->test();
+    dump("End Tests");
+
+   }
+    
+  
+
 }

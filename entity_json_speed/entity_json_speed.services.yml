@@ -18,3 +18,5 @@ services:
       - '@serializer'
       - '@entity_type.manager'
       - '@entity_json_speed.file'
+  entity_json_speed.test_service:
+    class: Drupal\entity_json_speed\Test\TestService

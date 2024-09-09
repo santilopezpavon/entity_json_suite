@@ -45,15 +45,17 @@ class GlobalEntities {
 
     $json_data_array = $this->removeUnwantedProperties($json_data_array);
 
+    $json_data = json_encode($json_data_array);
+    $this->file_service->saveData($path_entity, $json_data, $replace_file);
+    
+    
     $configuration = [];
     $configuration["translation_info"] = $this->getTranslationData($entity);
 
     $file_config = $this->file_service->getPathFileEntityConfig($entity);
 
-    $json_data = json_encode($json_data_array);
-    $this->file_service->saveData($path_entity, $json_data, $replace_file);
     $this->file_service->saveData($file_config, json_encode($configuration), TRUE);
-
+    
   }
 
   public function delete($entity) {
@@ -62,6 +64,18 @@ class GlobalEntities {
     }
     $path_entity = $this->path($entity);
     $this->file_service->deleteFile($path_entity);
+
+    if(method_exists($entity, "isDefaultTranslation") && $entity->isDefaultTranslation()) {
+      $file_config = $this->file_service->getPathFileEntityConfig($entity);
+      $this->file_service->deleteFile($file_config);
+      $translations = $entity->getTranslationLanguages();
+      foreach ($translations as $langcode => $language) {
+        $translated_entity = $entity->getTranslation($langcode);
+        if (!$translated_entity->isDefaultTranslation()) {
+            $this->delete($translated_entity);
+        }
+      }
+    }
   }
 
   public function path($entity) {
@@ -95,7 +109,7 @@ class GlobalEntities {
   protected function removeUnwantedProperties($data) {
     // Properties to remove.
     $unwanted_properties = [
-        'vid', 'uuid', 'revision_id', 
+        'vid', 'uuid', 'revision_id', 'revision_log', 
         'revision_timestamp', 'revision_uid', 
         'uid','promote', 'sticky','revision_translation_affected', 
         'content_translation_source', 'content_translation_outdated'
