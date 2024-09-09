@@ -22,16 +22,24 @@ class GlobalEntities {
   /**
    * Constructor.
    */
-  public function __construct($serializer, $entityTypeManager, $file_service, $alias_manager, $language_manager) {
+  public function __construct(
+    $serializer, 
+    $entityTypeManager, 
+    $file_service, 
+    $alias_manager, 
+    $language_manager, 
+    $config_factory
+  ) {
     $this->serializer = $serializer;
     $this->entityTypeManager = $entityTypeManager;
     $this->file_service = $file_service;
-    $this->entity_types = \Drupal::config('entity_json_speed.settings')->get('content_types_array');
+    $this->entity_types = $config_factory->get('entity_json_speed.settings')->get('content_types_array');
     $this->alias_manager = $alias_manager;
     $this->language_manager = $language_manager;
     if(!is_array($this->entity_types)) {
       $this->entity_types = [];
     }
+
   }
 
   public function export($entity, $replace_file = TRUE) {

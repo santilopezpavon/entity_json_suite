@@ -5,15 +5,25 @@ namespace Drupal\entity_json_speed\Test;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Serialization\SerializerInterface;
+use Drupal\entity_json_speed\Test\BaseTestClass;
 
 /**
  * Service to handle JSON export and deletion for entities.
  */
-class TestService {
+class TestService extends BaseTestClass{
 
     private $name = 'ra9oui35j6b51bc0ochk4n48gj';
     private $content_type = 'article';
     private $lang_trans = 'es';
+    /*private $file_service;
+    private $entity_type;*/
+
+    public function __construct($file_service, $entity_type) {
+        /*$this->file_service = $file_service;
+        $this->entity_type = $entity_type;*/
+        parent::__construct($file_service, $entity_type);
+
+    }
 
     public function test() {
 
@@ -36,37 +46,18 @@ class TestService {
             ]
         ];
 
-        foreach ($test as $key => $value) {
-            print_r("----------------------------------------" . "\n");
-            print_r("Método: " . $value["name"] . "\n");
-            print_r("Descripción:" . $value["description"] . "\n");
-
-            $method_name = $value["name"];
-            $test_passed = $this->$method_name();
-            if ($test_passed == 1) {
-                // Código de escape ANSI para verde
-                print_r("\033[32mResultado: " . $test_passed . "\033[0m\n");
-            } else {
-                // Código de escape ANSI para rojo
-                print_r("\033[31mResultado: " . $test_passed . "\033[0m\n");
-            }
-        
-
-        }
-     
+        $this->doTests($test);
     }
 
     public function createBaseFiles() {
 
-        $ejsf = \Drupal::service('entity_json_speed.file');
-        $node = \Drupal::service('entity_type.manager')->getStorage('node')->create([
+        $node = $this->createEntity("node", [
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
-        ]);      
-        $node->save();       
+        ]);            
       
-        $paths = $ejsf->getPathsFilesEntity($node);      
+        $paths = $this->file_service->getPathsFilesEntity($node);      
         $first = file_exists($paths['complete_path_file_config']);
         $second = file_exists($paths['complete_path_file_current']);
 
@@ -76,19 +67,17 @@ class TestService {
     }
     
     public function removeFilesOriginAndTranslation() {
-        $ejsf = \Drupal::service('entity_json_speed.file');
-        $node = \Drupal::service('entity_type.manager')->getStorage('node')->create([
+        $node = $this->createEntity("node", [
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
-        ]);      
-        $node->save();   
+        ]);  
         
         $node_trans = $node->addTranslation($this->lang_trans, $node->toArray());
         $node_trans->save();
 
-        $paths_trans = $ejsf->getPathsFilesEntity($node_trans);
-        $paths_origin = $ejsf->getPathsFilesEntity($node);
+        $paths_trans = $this->file_service->getPathsFilesEntity($node_trans);
+        $paths_origin = $this->file_service->getPathsFilesEntity($node);
         
         $node->delete();   
 
@@ -107,15 +96,14 @@ class TestService {
 
 
     public function removeFilesOrigin() {
-        $ejsf = \Drupal::service('entity_json_speed.file');
-        $node = \Drupal::service('entity_type.manager')->getStorage('node')->create([
+        $node = $this->entity_type->getStorage('node')->create([
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
         ]);      
         $node->save();       
       
-        $paths = $ejsf->getPathsFilesEntity($node);  
+        $paths = $this->file_service->getPathsFilesEntity($node);  
         $node->delete();
     
         $first = !file_exists($paths['complete_path_file_config']);
@@ -125,8 +113,7 @@ class TestService {
     }
 
     public function removeFilesOriginTranslation() {
-        $ejsf = \Drupal::service('entity_json_speed.file');
-        $node = \Drupal::service('entity_type.manager')->getStorage('node')->create([
+        $node = $this->entity_type->getStorage('node')->create([
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
@@ -136,7 +123,7 @@ class TestService {
         $node_trans = $node->addTranslation($this->lang_trans, $node->toArray());
         $node_trans->save();
 
-        $paths = $ejsf->getPathsFilesEntity($node_trans);    
+        $paths = $this->file_service->getPathsFilesEntity($node_trans);    
         $node_trans->delete();
   
         $first = !file_exists($paths['complete_path_file_config']);
@@ -150,7 +137,7 @@ class TestService {
     
 
     public function createTranslationFields() {
-        $node = \Drupal::service('entity_type.manager')->getStorage('node')->create([
+        $node = $this->entity_type->getStorage('node')->create([
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
@@ -160,8 +147,7 @@ class TestService {
         $node_trans = $node->addTranslation($this->lang_trans, $node->toArray());
         $node_trans->save();
 
-        $ejsf = \Drupal::service('entity_json_speed.file');
-        $paths = $ejsf->getPathsFilesEntity($node_trans);
+        $paths = $this->file_service->getPathsFilesEntity($node_trans);
 
       
         $first = file_exists($paths['complete_path_file_config']);

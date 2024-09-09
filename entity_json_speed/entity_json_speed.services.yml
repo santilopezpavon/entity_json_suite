@@ -12,6 +12,7 @@ services:
       - '@entity_json_speed.file'
       - '@path_alias.manager'
       - '@language_manager'
+      - '@config.factory'
   entity_json_speed.alias:
     class: Drupal\entity_json_speed\Entities\Alias
     arguments:
@@ -20,3 +21,6 @@ services:
       - '@entity_json_speed.file'
   entity_json_speed.test_service:
     class: Drupal\entity_json_speed\Test\TestService
+    arguments:
+      - '@entity_json_speed.file'
+      - '@entity_type.manager'
