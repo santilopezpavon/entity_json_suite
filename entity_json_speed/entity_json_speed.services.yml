@@ -24,3 +24,10 @@ services:
     arguments:
       - '@entity_json_speed.file'
       - '@entity_type.manager'
+      - '@entity_json_speed.alias'
+  entity_json_speed.test_alias_service:
+    class: Drupal\entity_json_speed\Test\TestAliasService
+    arguments:
+      - '@entity_json_speed.file'
+      - '@entity_type.manager'
+      - '@entity_json_speed.alias'

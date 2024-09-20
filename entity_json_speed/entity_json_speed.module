@@ -7,7 +7,7 @@ use Drupal\Core\Entity\EntityInterface;
  */
 function entity_json_speed_entity_insert(EntityInterface $entity) {
   \Drupal::service("entity_json_speed.global_entities")->export($entity);
-  //\Drupal::service("entity_json_speed.alias")->export($entity);
+  \Drupal::service("entity_json_speed.alias")->export($entity);
 }
 
 /**
@@ -15,7 +15,7 @@ function entity_json_speed_entity_insert(EntityInterface $entity) {
  */
 function entity_json_speed_entity_update(EntityInterface $entity) {
     \Drupal::service("entity_json_speed.global_entities")->export($entity);
-    //\Drupal::service("entity_json_speed.alias")->export($entity);
+  \Drupal::service("entity_json_speed.alias")->export($entity);
 }
 
 /**
@@ -28,7 +28,7 @@ function entity_json_speed_entity_update(EntityInterface $entity) {
  */
 function entity_json_speed_entity_translation_delete(EntityInterface $translation) {
   \Drupal::service("entity_json_speed.global_entities")->delete($translation);
- // \Drupal::service("entity_json_speed.alias")->delete($translation);
+  \Drupal::service("entity_json_speed.alias")->delete($translation);
 }
 
 
@@ -37,14 +37,28 @@ function entity_json_speed_entity_translation_delete(EntityInterface $translatio
  */
 function entity_json_speed_entity_delete(EntityInterface $entity) {
   \Drupal::service("entity_json_speed.global_entities")->delete($entity);
-  //\Drupal::service("entity_json_speed.alias")->delete($entity);
+  \Drupal::service("entity_json_speed.alias")->delete($entity);
 }
 
 
 function entity_json_speed_preprocess_html($variables) {
-  /*$node = \Drupal::entityTypeManager()->getStorage('node')->load(1695);
+  
+/*
+  $node = \Drupal::entityTypeManager()->getStorage('node')->load(1695);
   dump($node);
-  $ejsf = \Drupal::service("entity_json_speed.file");
+
+  $path_alias = \Drupal::entityTypeManager()
+  ->getStorage('path_alias')
+  ->loadByProperties(['path' => "/node/1695"]);
+  $path_alias = reset($path_alias);
+
+
+  dump($path_alias);
+
+  $alias = \Drupal::service("entity_json_speed.alias")->getPathAliasEntityByEntity($node);
+  dump($alias);*/
+
+  /*$ejsf = \Drupal::service("entity_json_speed.file");
   dump($ejsf->getPathsFilesEntity($node));
 
   $is_original = $node->isDefaultTranslation();

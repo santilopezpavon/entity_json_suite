@@ -94,9 +94,21 @@ class EntityJSONGeneratorCommands extends DrushCommands {
    * @aliases ejt
    */
 
-   public function test() {
+   public function test($type = "base") {
     dump("Init Tests");
-    \Drupal::service("entity_json_speed.test_service")->test();
+    switch ($type) {
+      case 'base':
+        \Drupal::service("entity_json_speed.test_service")->test();
+
+        break;
+      case 'alias':
+        \Drupal::service("entity_json_speed.test_alias_service")->test();
+
+        
+      default:
+        # code...
+        break;
+    }
     dump("End Tests");
 
    }

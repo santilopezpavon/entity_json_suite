@@ -18,10 +18,10 @@ class TestService extends BaseTestClass{
     /*private $file_service;
     private $entity_type;*/
 
-    public function __construct($file_service, $entity_type) {
+    public function __construct($file_service, $entity_type, $alias_service) {
         /*$this->file_service = $file_service;
         $this->entity_type = $entity_type;*/
-        parent::__construct($file_service, $entity_type);
+        parent::__construct($file_service, $entity_type, $alias_service);
 
     }
 
@@ -43,11 +43,15 @@ class TestService extends BaseTestClass{
             [
                 "name" => "removeFilesOriginAndTranslation",
                 "description" => "Crear entidad original, crear traducción, borrar original y verificar que ficheros de original y traducción se hayan borrado"
-            ]
+            ],
+         
+        
         ];
 
         $this->doTests($test);
     }
+
+  
 
     public function createBaseFiles() {
 
@@ -73,8 +77,7 @@ class TestService extends BaseTestClass{
             'status' => 1,
         ]);  
         
-        $node_trans = $node->addTranslation($this->lang_trans, $node->toArray());
-        $node_trans->save();
+        $node_trans = $this->createTranslation($node, $this->lang_trans);
 
         $paths_trans = $this->file_service->getPathsFilesEntity($node_trans);
         $paths_origin = $this->file_service->getPathsFilesEntity($node);
@@ -96,12 +99,12 @@ class TestService extends BaseTestClass{
 
 
     public function removeFilesOrigin() {
-        $node = $this->entity_type->getStorage('node')->create([
+        $node = $this->createEntity("node", [
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
-        ]);      
-        $node->save();       
+        ]);  
+             
       
         $paths = $this->file_service->getPathsFilesEntity($node);  
         $node->delete();
@@ -113,15 +116,15 @@ class TestService extends BaseTestClass{
     }
 
     public function removeFilesOriginTranslation() {
-        $node = $this->entity_type->getStorage('node')->create([
+        $node = $this->createEntity("node", [
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
-        ]);      
-        $node->save();   
+        ]);  
         
-        $node_trans = $node->addTranslation($this->lang_trans, $node->toArray());
-        $node_trans->save();
+        
+        $node_trans = $this->createTranslation($node, $this->lang_trans);
+
 
         $paths = $this->file_service->getPathsFilesEntity($node_trans);    
         $node_trans->delete();
@@ -137,15 +140,14 @@ class TestService extends BaseTestClass{
     
 
     public function createTranslationFields() {
-        $node = $this->entity_type->getStorage('node')->create([
+        $node = $this->createEntity("node", [
             'type' => $this->content_type,
             'title' => $this->name,
             'status' => 1,
-        ]);
-        $node->save();       
+        ]);              
 
-        $node_trans = $node->addTranslation($this->lang_trans, $node->toArray());
-        $node_trans->save();
+        $node_trans = $this->createTranslation($node, $this->lang_trans);
+
 
         $paths = $this->file_service->getPathsFilesEntity($node_trans);
 

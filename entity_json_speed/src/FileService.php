@@ -48,7 +48,7 @@ class FileService {
     $this->fileSystem->deleteRecursive($this->files_dir);
   }
 
-  private function getPath($path) {
+  public function getPath($path) {
     if ($path[0] === '/') {
       $path = substr($path, 1);
     }

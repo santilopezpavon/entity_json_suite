@@ -9,10 +9,12 @@ class BaseTestClass  {
 
     protected $file_service;
     protected $entity_type;
+    protected $alias_service;
 
-    public function __construct($file_service, $entity_type) {
+    public function __construct($file_service, $entity_type, $alias_service) {
         $this->file_service = $file_service;
         $this->entity_type = $entity_type;
+        $this->alias_service = $alias_service;
     }
 
     public function doTests($test) {
@@ -38,7 +40,43 @@ class BaseTestClass  {
     }
 
     public function createTranslation($entity, $lang) {
-        // Crear traducción de la entidad
+        $node_trans = $entity->addTranslation($lang, $entity->toArray());
+        $node_trans->save();
+        return $node_trans;
+    }
+
+    public function createEntityAndGetFiles($content_type, $data) {
+        $entity = $this->createEntity($content_type, $data);
+        $paths = $this->file_service->getPathsFilesEntity($entity);
+        return [
+            "entity" => $entity,
+            "paths" => $paths
+        ];
+    }
+
+    public function createTranslationAndGetFiles($entity, $lang) {
+        $entity_trans = $this->createTranslation($entity, $lang);
+        $paths = $this->file_service->getPathsFilesEntity($entity_trans);
+        
+        return [
+            "entity_trans" => $entity,
+            "paths_trans" => $paths
+        ];
+    }
+
+    public function createEntityAndTranslation($content_type, $data, $lang_trans) {
+        // Crear la entidad y obtener sus archivos
+        $entityData = $this->createEntityAndGetFiles($content_type, $data);
+
+        // Crear la traducción y obtener sus archivos
+        $translationData = $this->createTranslationAndGetFiles($entityData['entity'], $lang_trans);
+
+        return [
+            "entity" => $entityData['entity'],
+            "paths" => $entityData['paths'],
+            "entity_trans" => $translationData['entity_trans'],
+            "paths_trans" => $translationData['paths_trans']
+        ];
     }
 }
 

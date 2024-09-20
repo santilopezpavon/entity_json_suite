@@ -24,6 +24,19 @@ class Alias {
     $this->file_service = $file_service;
   }
 
+  public function getPathAliasEntityByEntity($entity, $lang = null) {
+    $source = "/" . $entity->getEntityTypeId() . "/" . $entity->id();
+    $path_alias = $this->entityTypeManager->getStorage('path_alias')->loadByProperties(['path' => $source]);
+    if(!empty($path_alias))  {
+      $path_alias = reset($path_alias);
+      if($lang !== null && $path_alias->hasTranslation($lang)) {
+        $path_alias = $path_alias->getTranslation($lang);
+      }
+      return $path_alias;
+    }
+    return FALSE;
+  }
+
   public function export($entity) {
     if($entity->getEntityTypeId() != 'path_alias') {
         return NULL;
@@ -88,7 +101,8 @@ class Alias {
       "target_id" => $alias_info["target_id"],
       "entity" => $alias_info["entity"],
       "file_data" => $file_data,
-      "alias_path" => $alias_path
+      "alias_path" => $alias_path,
+      "alias_path_complete" => $this->file_service->getPath($alias_path)
     ];
   
   }
@@ -108,8 +122,8 @@ class Alias {
   }
 
   private function infoEntityAlias($entity) {
-      $alias = $entity->getAlias();
-   
+    $alias = $entity->getAlias();
+
     $source_path = $entity->getPath();
     $array_explode = explode("/", $source_path);
     $lang_origin = $entity->language()->getId();
