@@ -42,7 +42,7 @@ function entity_json_speed_entity_delete(EntityInterface $entity) {
 
 
 function entity_json_speed_preprocess_html($variables) {
-  
+
 /*
   $node = \Drupal::entityTypeManager()->getStorage('node')->load(1695);
   dump($node);
