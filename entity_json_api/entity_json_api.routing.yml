@@ -1,0 +1,7 @@
+entity_json_api.get_entity_by_alias:
+  path: '/api/file/json/get-by-alias'
+  defaults:
+    _controller: '\Drupal\entity_json_api\Controller\ApiController::getEntityByAlias'
+  requirements:
+    _access: 'TRUE'
+

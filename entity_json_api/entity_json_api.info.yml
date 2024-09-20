@@ -1,0 +1,8 @@
+type: module
+name: Entity JSON API
+description: 'Entity JSON API.'
+package: API
+core_version_requirement: ^8.8 || ^9
+configure: entity_json_speed.settings_form
+dependencies:
+  - entity_json_speed
