@@ -53,6 +53,9 @@ class GeneratorService {
         $this->entitySerializer->exportEntity($entity);
       }
     }
+
+    $this->generateAlias();
+
   }
 
   /**
@@ -138,6 +141,43 @@ class GeneratorService {
       }
 
     }
+
+    $this->generateAlias();
+
+  }
+
+  public function generateAlias() {
+    $alias_manager = \Drupal::service('path_alias.manager');
+    $aliases = \Drupal::database()->select('path_alias', 'pa')
+    ->fields('pa', ['path', 'alias', 'langcode'])
+    ->execute()
+    ->fetchAll();
+
+    $result = [];
+
+    foreach ($aliases as $key => $aliasEntity) {
+        $langcode = $aliasEntity->langcode;
+        $path = $aliasEntity->path;
+        $alias = $aliasEntity->alias;
+
+        $key = $langcode . $alias;
+        
+        if(!array_key_exists($langcode, $result)) {
+            $result[$langcode] = [];
+        }
+        $result[$langcode][$key] = [
+            // "langcode" => $langcode,
+            "path" => $path,
+            // "alias" => $alias
+        ];
+    }    
+
+    foreach ($result as $key => $value) {
+        $jsonData = json_encode($result[$key]);
+        $this->fileStorageManager->saveData($jsonData, "alias", "alias", $key);
+    
+    }
+
 
   }
 

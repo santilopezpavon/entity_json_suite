@@ -83,6 +83,7 @@ class FileStorageManager {
 
   }
 
+
   public function getEntitiesInFiles($entity_type_id) {
     $directory = $this->getBaseDirectory() . "/" . $entity_type_id;
 
