@@ -1,0 +1,7 @@
+headless_entity_serializer.settings_form:
+  path: '/admin/config/headless-entity-serializer'
+  defaults:
+    _form: '\Drupal\headless_entity_serializer\Form\SettingsForm'
+    _title: 'Configuración de Serialización de Entidades'
+  requirements:
+    _permission: 'administer headless entity serializer'

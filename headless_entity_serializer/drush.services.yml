@@ -1,0 +1,7 @@
+services:
+ headless_entity_serializer.drush_generator_commands:
+  class: Drupal\headless_entity_serializer\Commands\EntitySerializerCommands
+  tags:
+    - {name: drush.command}
+  arguments:
+    - "@headless_entity_serializer.generator"

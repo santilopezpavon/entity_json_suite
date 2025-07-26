@@ -1,0 +1,20 @@
+services:
+  headless_entity_serializer.entity_serializer:
+    class: Drupal\headless_entity_serializer\Services\Serialize\EntitySerializer
+    arguments:
+      - '@headless_entity_serializer.file_storage_manager'
+      - '@serializer'
+  headless_entity_serializer.file_storage_manager: 
+    class: Drupal\headless_entity_serializer\Services\Storage\FileStorageManager
+    arguments:
+      - '@file_system'
+      - '@config.factory'
+      - '@logger.factory'
+      - '@language_manager'
+  headless_entity_serializer.generator:
+    class: Drupal\headless_entity_serializer\Services\Generator\GeneratorService
+    arguments:
+      - '@headless_entity_serializer.file_storage_manager'
+      - '@config.factory'
+      - '@headless_entity_serializer.entity_serializer'
+      - '@state'
