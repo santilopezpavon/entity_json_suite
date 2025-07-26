@@ -64,6 +64,18 @@ class GeneratorService {
   }
 
   /**
+   *
+   */
+  public function fullGenerateEntityType($entity_type_id) {
+    $storage = \Drupal::entityTypeManager()->getStorage($entity_type_id);
+    $entityIds = $storage->getQuery()->execute();
+    foreach ($entityIds as $entityId) {
+      $entity = $storage->load($entityId);
+      $this->entitySerializer->exportEntity($entity);
+    }
+  }
+
+  /**
    * Fully regenerates JSON files for selected entity types and path aliases.
    *
    * This command deletes all existing serialized files for the configured
@@ -82,12 +94,7 @@ class GeneratorService {
     $config = $this->configFactory->get('headless_entity_serializer.settings');
     $entityTypes = $config->get('entity_types');
     foreach ($entityTypes as $entityType) {
-      $storage = \Drupal::entityTypeManager()->getStorage($entityType);
-      $entityIds = $storage->getQuery()->execute();
-      foreach ($entityIds as $entityId) {
-        $entity = $storage->load($entityId);
-        $this->entitySerializer->exportEntity($entity);
-      }
+      $this->fullGenerateEntityType($entityType);
     }
 
     $this->generateAlias();
@@ -96,7 +103,6 @@ class GeneratorService {
       "status" => TRUE,
       "message" => "The generation was successful",
     ];
-
   }
 
   /**
@@ -117,16 +123,19 @@ class GeneratorService {
 
     foreach ($entityTypes as $entityType) {
       $storage = \Drupal::entityTypeManager()->getStorage($entityType);
-      // Consultar las últimas revisiones.
+      // $entityFieldManager = \Drupal::service('entity_field.manager');
+      // $baseFields = $entityFieldManager->getBaseFieldDefinitions($entityType);
+      // $updateProperty = "changed";
+
       $query = $storage->getQuery()->latestRevision();
       $changed_entity_ids = $query
-        ->condition('changed', $last_run_timestamp, '>')
+        ->condition("changed", $last_run_timestamp, '>')
         ->execute();
       $created_entity_ids = $query
         ->condition('created', $last_run_timestamp, '>')
         ->execute();
-
       $ids_to_process = array_unique(array_merge($changed_entity_ids, $created_entity_ids));
+      dump($ids_to_process);
       foreach ($ids_to_process as $entityId) {
         $entity = $storage->load($entityId);
         $this->entitySerializer->exportEntity($entity);
@@ -163,7 +172,6 @@ class GeneratorService {
     // Siempre consulta la última revisión.
     $query = $storage->getQuery()->latestRevision();
     $current_db_ids = $query->execute();
-
     $serialized_files_info = $this->fileStorageManager->getEntitiesInFiles($entity_type_id);
     $serialized_entity_ids = array_keys($serialized_files_info);
 

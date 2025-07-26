@@ -40,9 +40,14 @@ class EntitySerializerCommands extends DrushCommands {
    * @usage hes-full
    * Fully regenerates JSON files for all configured entity types.
    */
-  public function fullRegenerate() {
+  public function fullRegenerate($entity_type_id = NULL) {
     $this->io()->section('Executing full regeneration of serialized entities and aliases');
-    $this->generator->fullGenerate();
+    if ($entity_type_id === NULL) {
+      $this->generator->fullGenerate();
+    }
+    else {
+      $this->generator->fullGenerateEntityType($entity_type_id);
+    }
   }
 
   /**

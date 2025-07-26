@@ -55,7 +55,6 @@ class EntitySerializer {
     $entityTypeId = $entity->getEntityTypeId();
     $languageId = $entity->language()->getId();
     $entityId = $entity->id();
-
     // Check if the entity has the getTranslationLanguages method, typically
     // found on ContentEntityInterface, indicating it might have multiple translations.
     if (method_exists($entity, "getTranslationLanguages")) {
@@ -65,6 +64,8 @@ class EntitySerializer {
         // Get the specific translation of the entity.
         $translation = $entity->getTranslation($id);
         // Serialize the translated entity data to JSON.
+        $this->processParagprahs($entity);
+
         $json_data = $this->serializer->serialize($translation, 'json', []);
         // Save the JSON data to a file using the FileStorageManager.
         $this->fileStorageManager->saveData($json_data, $entityId, $entityTypeId, $id);
@@ -73,10 +74,42 @@ class EntitySerializer {
     else {
       // For entities that are not translatable or do not implement
       // getTranslationLanguages, serialize the entity directly.
+      $this->processParagprahs($entity);
       $json_data = $this->serializer->serialize($entity, 'json', []);
       // Save the JSON data to a file using the FileStorageManager.
       $this->fileStorageManager->saveData($json_data, $entityId, $entityTypeId, $languageId);
     }
+  }
+
+  /**
+   *
+   */
+  protected function processParagprahs($entity) {
+    dump("hola");
+    $field_definitions = $entity->getFieldDefinitions();
+    foreach ($field_definitions as $field_name => $field_definition) {
+      if (
+        $field_definition->getType() === 'entity_reference_revisions' &&
+        $field_definition->getSetting('target_type') === 'paragraph'
+      ) {
+        if (!$entity->get($field_name)->isEmpty()) {
+          foreach ($entity->get($field_name) as $item) {
+            /** @var \Drupal\paragraphs\ParagraphInterface|null $paragraph */
+            // This gets the actual entity object.
+            $paragraph = $item->entity;
+            dump("hola 2");
+              // Recursively call exportEntity for the paragraph.
+              // Note: A paragraph itself might have paragraph fields, so this
+              // recursion will naturally handle nested paragraphs.
+              $this->exportEntity($paragraph);
+
+          }
+        }
+
+      }
+
+    }
+
   }
 
 }

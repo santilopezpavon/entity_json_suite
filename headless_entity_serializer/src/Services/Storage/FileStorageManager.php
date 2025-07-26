@@ -105,7 +105,6 @@ class FileStorageManager {
     $directory = $this->getBaseDirectory();
     $directory = $directory . "/" . $entity_type_id . "/" . $entity_id . "/";
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
-
     $path = $directory . "" . $language_id . ".json";
     $this->fileSystem->saveData($json_data, $path, FileSystemInterface::EXISTS_REPLACE);
 
