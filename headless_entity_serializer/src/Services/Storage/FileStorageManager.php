@@ -2,14 +2,14 @@
 
 namespace Drupal\headless_entity_serializer\Services\Storage;
 
-use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Psr\Log\LoggerInterface;
+use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Language\LanguageManagerInterface; // Para getDestinationFilePath y t()
 
 /**
  * Service to manage file system operations for serialized entities.
+ *
  * This includes bulk deletion and scanning for existing files.
  */
 class FileStorageManager {
@@ -46,44 +46,89 @@ class FileStorageManager {
    * Constructs a new FileStorageManager object.
    *
    * @param \Drupal\Core\File\FileSystemInterface $file_system
-   * The file system service.
+   *   The file system service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   * The config factory.
+   *   The config factory.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
-   * The logger factory.
+   *   The logger factory.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
-   * The language manager.
+   *   The language manager.
    */
   public function __construct(
     FileSystemInterface $file_system,
     ConfigFactoryInterface $config_factory,
     LoggerChannelFactoryInterface $logger_factory,
-    LanguageManagerInterface $language_manager
+    LanguageManagerInterface $language_manager,
   ) {
     $this->fileSystem = $file_system;
     $this->configFactory = $config_factory;
     $this->logger = $logger_factory->get('headless_entity_serializer');
     $this->languageManager = $language_manager;
-  }  
+  }
 
-  
-
+  /**
+   * Ensures the base destination directory exists.
+   *
+   * This method attempts to create the base directory where all serialized
+   * files will be stored. It's often implicitly called by methods that save
+   * data, but can be called explicitly to ensure setup.
+   *
+   * @return bool
+   *   TRUE on successful creation or if it already exists, FALSE on failure.
+   */
   public function createDirectory() {
     $directory = $this->getBaseDirectory();
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
+    return TRUE;
   }
 
-  public function saveData($json_data, $entityId, $entity_type_id, $language_id) {
+  /**
+   * Saves JSON data for a specific entity translation to a file.
+   *
+   * This method constructs the full path for the entity's JSON file based
+   * on the configured base directory, entity type, entity ID, and language.
+   * It ensures the necessary subdirectories exist before saving.
+   *
+   * @param string $json_data
+   *   The JSON string to save.
+   * @param string $entity_id
+   *   The ID of the entity.
+   * @param string $entity_type_id
+   *   The entity type ID (e.g., 'node', 'user').
+   * @param string $language_id
+   *   The language code for the specific translation (e.g., 'en', 'es').
+   *
+   * @return bool
+   *   TRUE on successful save, FALSE on failure.
+   */
+  public function saveData($json_data, $entity_id, $entity_type_id, $language_id) {
     $directory = $this->getBaseDirectory();
-    $directory = $directory . "/" . $entity_type_id . "/" . $entityId . "/";
+    $directory = $directory . "/" . $entity_type_id . "/" . $entity_id . "/";
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
 
     $path = $directory . "" . $language_id . ".json";
     $this->fileSystem->saveData($json_data, $path, FileSystemInterface::EXISTS_REPLACE);
 
+    return TRUE;
   }
 
-
+  /**
+   * Gets information about currently serialized files for a given entity type.
+   *
+   * This method scans the file system for JSON files belonging to a specific
+   * entity type. It expects a directory structure like:
+   * [destination_directory]/[entity_type_id]/[entity_id]/[langcode].json.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID (e.g., 'node', 'user').
+   *
+   * @return array
+   *   An associative array where keys are entity IDs and values are
+   *   arrays of language codes representing available translations.
+   *   Example: `['123' => ['en', 'es']]`
+   *   Returns an empty array if the base directory is not configured or the
+   *   entity type directory does not exist.
+   */
   public function getEntitiesInFiles($entity_type_id) {
     $directory = $this->getBaseDirectory() . "/" . $entity_type_id;
 
@@ -93,10 +138,10 @@ class FileStorageManager {
     foreach ($files as $uri => $file_info) {
       if (preg_match('#' . $entity_type_id . '/(\d+)/(\w+)\.json$#', $uri, $coincidencias)) {
         $id = $coincidencias[1];
-        $idioma = $coincidencias[2];    
+        $idioma = $coincidencias[2];
         if (!isset($resultado[$id])) {
           $resultado[$id] = [];
-        }    
+        }
         if (!in_array($idioma, $resultado[$id])) {
           $resultado[$id][] = $idioma;
         }
@@ -105,23 +150,32 @@ class FileStorageManager {
     return $resultado;
   }
 
-   /**
+  /**
    * Deletes the entire base directory where serialized files are stored.
+   *
    * This effectively removes all serialized entity files.
    *
    * @return bool
-   * TRUE on successful deletion or if directory does not exist, FALSE otherwise.
+   *   TRUE on successful deletion, FALSE otherwise.
    */
   public function deleteAllSerializedFiles(): bool {
     try {
-        $base_directory = $this->getBaseDirectory();
-        $this->fileSystem->deleteRecursive($base_directory . "/");
-        return TRUE;
-    } catch (\Throwable $th) {
-        return FALSE;
-    }    
+      $base_directory = $this->getBaseDirectory();
+      $this->fileSystem->deleteRecursive($base_directory . "/");
+      return TRUE;
+    }
+    catch (\Throwable $th) {
+      return FALSE;
+    }
   }
 
+  /**
+   * Retrieves the base destination directory from configuration.
+   *
+   * @return string|false
+   *   The base directory path (e.g., 'public://exported_data') or FALSE if
+   *   not configured.
+   */
   private function getBaseDirectory() {
     $config = $this->configFactory->get('headless_entity_serializer.settings');
     $base_directory = $config->get('destination_directory');
@@ -133,37 +187,65 @@ class FileStorageManager {
     return $base_directory;
   }
 
+  /**
+   * Deletes the directory for a specific entity ID within its entity type.
+   *
+   * This means removing: [destination_directory]/[entity_type_id]/[entity_id]/
+   *
+   * @param string $entity_type_id
+   *   The entity type ID.
+   * @param string $entity_id
+   *   The ID of the entity whose directory should be deleted.
+   *
+   * @return bool
+   *   TRUE on successful deletion or if the directory does not exist,
+   *   FALSE otherwise.
+   */
   public function deleteEntityDirectory($entity_type_id, $entity_id) {
     $base_directory = $this->getBaseDirectory();
     if (!$base_directory) {
       return FALSE;
-    }  
+    }
     $target_directory = $base_directory . '/' . $entity_type_id . '/' . $entity_id;
-    dump($target_directory);
     try {
       $this->fileSystem->deleteRecursive($target_directory);
       return TRUE;
-    } catch (\Throwable $th) {
-      
+    }
+    catch (\Throwable $th) {
+
       return FALSE;
     }
   }
-  
 
+  /**
+   * Deletes a specific serialized entity file for a given language.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID.
+   * @param string $entity_id
+   *   The ID of the entity.
+   * @param string $language_id
+   *   The language code of the file to delete.
+   *
+   * @return bool
+   *   TRUE on successful deletion or if the file does not exist,
+   *   FALSE otherwise.
+   */
   public function deleteEntityFile($entity_type_id, $entity_id, $language_id) {
     $base_directory = $this->getBaseDirectory();
     if (!$base_directory) {
       return FALSE;
     }
-  
+
     $filepath = $base_directory . '/' . $entity_type_id . '/' . $entity_id . '/' . $language_id . '.json';
     try {
       $this->fileSystem->delete($filepath);
       return TRUE;
-    } catch (\Throwable $th) {
+    }
+    catch (\Throwable $th) {
 
       return FALSE;
     }
   }
-  
+
 }

@@ -2,11 +2,11 @@
 
 namespace Drupal\headless_entity_serializer\Form;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface; // Importa la interfaz
-use Symfony\Component\DependencyInjection\ContainerInterface; // Importa para la inyección
-use Drupal\Core\Messenger\MessengerInterface; // Importa la interfaz para Messenger
+use Drupal\Core\Messenger\MessengerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a settings form for the Headless Entity Serializer module.
@@ -32,21 +32,19 @@ class SettingsForm extends ConfigFormBase {
    *
    * @var string[]
    */
-  private $entity_types_compatibles = ["node", "path_alias", "media", "paragraph", "menu", "taxonomy_term"];
+  private $entityTypesCompatibles = ["node", "media", "paragraph", "menu", "taxonomy_term"];
 
   /**
    * Constructs a new SettingsForm object.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   * The entity type manager.
+   *   The entity type manager.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
-   * The messenger service.
+   *   The messenger service.
    */
   public function __construct(EntityTypeManagerInterface $entity_type_manager, MessengerInterface $messenger) {
-    // No llames a parent::__construct() aquí. ConfigFormBase no lo requiere
-    // con argumentos y su inicialización se maneja por su propia estructura.
     $this->entityTypeManager = $entity_type_manager;
-    $this->messenger = $messenger; // Asigna el servicio de mensajería
+    $this->messenger = $messenger;
   }
 
   /**
@@ -55,7 +53,7 @@ class SettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
-      $container->get('messenger') // Inyecta el servicio 'messenger'
+      $container->get('messenger')
     );
   }
 
@@ -82,16 +80,16 @@ class SettingsForm extends ConfigFormBase {
 
     $form['entity_types'] = [
       '#type' => 'checkboxes',
-      '#title' => $this->t('Tipos de Entidad a Serializar'),
-      '#description' => $this->t('Selecciona los tipos de entidad que deseas serializar a ficheros JSON.'),
+      '#title' => $this->t('Entity Types to Serialize'),
+      '#description' => $this->t('Select the entity types you want to serialize to JSON files.'),
       '#options' => $content_types,
       '#default_value' => $config->get('entity_types') ?: [],
     ];
 
     $form['destination_directory'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('Directorio de Destino'),
-      '#description' => $this->t('Ruta absoluta o relativa donde se guardarán los ficheros JSON. Se recomienda fuera del directorio público (ej. ../serialized_data).'),
+      '#title' => $this->t('Destination Directory'),
+      '#description' => $this->t("Absolute or relative path where the JSON files will be saved. It's recommended that they be stored outside the public directory."),
       '#default_value' => $config->get('destination_directory'),
       '#required' => TRUE,
     ];
@@ -103,13 +101,13 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    // Implementación de validación de directorio.
     $directory = $form_state->getValue('destination_directory');
     if (!is_dir($directory)) {
-      if (!@mkdir($directory, 0775, TRUE)) { // Intentar crear el directorio
+      if (!@mkdir($directory, 0775, TRUE)) {
         $form_state->setErrorByName('destination_directory', $this->t('El directorio de destino no existe y no pudo ser creado: @directory. Asegúrate de que la ruta sea válida y los permisos sean correctos.', ['@directory' => $directory]));
       }
-    } elseif (!is_writable($directory)) {
+    }
+    elseif (!is_writable($directory)) {
       $form_state->setErrorByName('destination_directory', $this->t('El directorio de destino no es escribible: @directory. Por favor, verifica los permisos.', ['@directory' => $directory]));
     }
     parent::validateForm($form, $form_state);
@@ -124,8 +122,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('destination_directory', $form_state->getValue('destination_directory'))
       ->save();
 
-    // Usa la propiedad inyectada para enviar mensajes.
-    $this->messenger->addStatus($this->t('La configuración de serialización de entidades se ha guardado.'));
+    $this->messenger->addStatus($this->t('The entity serialization configuration has been saved.'));
     parent::submitForm($form, $form_state);
   }
 
@@ -133,24 +130,22 @@ class SettingsForm extends ConfigFormBase {
    * Gets all available entity types for the form options.
    *
    * @return array
-   * An array of entity type labels keyed by entity type ID.
+   *   An array of entity type labels keyed by entity type ID.
    */
   private function getAllContentTypes() {
-    $definitions = $this->entityTypeManager->getDefinitions(); // Usamos la propiedad inyectada
+    $definitions = $this->entityTypeManager->getDefinitions();
     $options = [];
     foreach ($definitions as $key => $value) {
-      // Filtra por entidades que son "contenido" y tienen un controlador de almacenamiento.
-      // Puedes ajustar esta lógica si necesitas serializar entidades de configuración, por ejemplo.
-      if ($value->getHandlerClasses()['storage'] ?? false) {
+      if ($value->getHandlerClasses()['storage'] ?? FALSE) {
         $label = $value->getLabel();
-        if (in_array($key, $this->entity_types_compatibles)) {
+        if (in_array($key, $this->entityTypesCompatibles)) {
           $label .= " (RECOMENDADO)";
         }
         $options[$key] = $label . " (" . $key . ")";
       }
     }
-    // Opcional: Ordenar las opciones alfabéticamente para mejor UX.
     asort($options);
     return $options;
   }
+
 }

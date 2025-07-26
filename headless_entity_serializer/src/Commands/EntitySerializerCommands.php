@@ -2,7 +2,7 @@
 
 namespace Drupal\headless_entity_serializer\Commands;
 
-use Drupal\headless_entity_serializer\Service\Generator\GeneratorService;
+use Drupal\headless_entity_serializer\Services\Generator\GeneratorService;
 use Drush\Commands\DrushCommands;
 
 /**
