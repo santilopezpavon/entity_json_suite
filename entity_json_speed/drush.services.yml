@@ -1,6 +1,0 @@
-services:
- entity_json_speed.drush_generator_commands:
-  class: Drupal\entity_json_speed\Commands\EntityJSONGeneratorCommands
-  arguments: ["@entity_json_speed.global_entities", "@entity_json_speed.file"]
-  tags:
-    - {name: drush.command}
