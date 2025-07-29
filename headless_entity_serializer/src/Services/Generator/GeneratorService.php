@@ -39,6 +39,11 @@ class GeneratorService {
    */
   protected $state;
 
+  /**
+   * The logger channel for this module.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannel
+   */
   protected $logger;
 
   /**
@@ -52,6 +57,8 @@ class GeneratorService {
    *   The entity serializer service.
    * @param \Drupal\Core\State\StateInterface $state
    *   The state service.
+   * @param \Drupal\Core\Logger\LoggerChannel $logger_factory
+   *   The logger factory channel.
    */
   public function __construct(
     $file_storage_manager,
@@ -94,18 +101,29 @@ class GeneratorService {
    */
   public function fullGenerate() {
 
+    // Get timestamp for state.
+    $current_timestamp = time();
+
     // Remove all files.
     $this->fileStorageManager->deleteAllSerializedFiles();
 
-    // Recreate all files.
+    // Create a directory for entities files.
     $this->fileStorageManager->createDirectory();
+
+    // Get the entities types for generate JSON files.
     $config = $this->configFactory->get('headless_entity_serializer.settings');
     $entityTypes = $config->get('entity_types');
+
+    // Generate all entities in JSON files by types.
     foreach ($entityTypes as $entityType) {
       $this->fullGenerateEntityType($entityType);
     }
 
+    // Generete the alias files.
     $this->generateAlias();
+
+    // Set state.
+    $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
 
     return [
       "status" => TRUE,

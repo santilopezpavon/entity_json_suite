@@ -2,9 +2,12 @@
 
 namespace Drupal\headless_entity_serializer\Form;
 
+use Drupal\Core\Entity\ContentEntityType;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Logger\LoggerChannel;
 use Drupal\Core\Messenger\MessengerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -28,11 +31,18 @@ class SettingsForm extends ConfigFormBase {
   protected $messenger;
 
   /**
-   * An array of entity types considered compatible for serialization.
+   * The entity field manager.
    *
-   * @var string[]
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
-  private $entityTypesCompatibles = ["node", "media", "paragraph", "menu", "taxonomy_term"];
+  protected $entityFieldManager;
+
+  /**
+   * The logger channel for this module.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannel
+   */
+  protected $logger;
 
   /**
    * Constructs a new SettingsForm object.
@@ -41,10 +51,21 @@ class SettingsForm extends ConfigFormBase {
    *   The entity type manager.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger service.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
+   *   The entity field manager.
+   * @param \Drupal\Core\Logger\LoggerChannel $logger
+   *   The logger factory channel.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, MessengerInterface $messenger) {
+  public function __construct(
+    EntityTypeManagerInterface $entity_type_manager,
+    MessengerInterface $messenger,
+    EntityFieldManagerInterface $entity_field_manager,
+    LoggerChannel $logger,
+  ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
+    $this->entityFieldManager = $entity_field_manager;
+    $this->logger = $logger;
   }
 
   /**
@@ -53,7 +74,9 @@ class SettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('entity_type.manager'),
-      $container->get('messenger')
+      $container->get('messenger'),
+      $container->get('entity_field.manager'),
+      $container->get('logger.factory')->get('headless_entity_serializer')
     );
   }
 
@@ -76,7 +99,7 @@ class SettingsForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('headless_entity_serializer.settings');
-    $content_types = $this->getAllContentTypes();
+    $content_types = $this->getAllContentTypesOptions();
 
     $form['entity_types'] = [
       '#type' => 'checkboxes',
@@ -140,14 +163,13 @@ class SettingsForm extends ConfigFormBase {
    * @return array
    *   An array of entity type labels keyed by entity type ID.
    */
-  private function getAllContentTypes() {
+  private function getAllContentTypesOptions() {
     $definitions = $this->entityTypeManager->getDefinitions();
     $options = [];
     $optionsNotChange = [];
     foreach ($definitions as $key => $value) {
-      try {
-        $entityFieldManager = \Drupal::service('entity_field.manager');
-        $baseFields = $entityFieldManager->getBaseFieldDefinitions($key);
+      if ($value instanceof ContentEntityType) {
+        $baseFields = $this->entityFieldManager->getBaseFieldDefinitions($key);
         $label = $value->getLabel();
         if (array_key_exists("changed", $baseFields)) {
           $options[$key] = $label;
@@ -155,9 +177,6 @@ class SettingsForm extends ConfigFormBase {
         else {
           $optionsNotChange[$key] = $label;
         }
-      }
-      catch (\Throwable $th) {
-        // Throw $th;.
       }
     }
     asort($options);
