@@ -39,6 +39,8 @@ class GeneratorService {
    */
   protected $state;
 
+  protected $logger;
+
   /**
    * Constructs a new GeneratorService object.
    *
@@ -56,15 +58,21 @@ class GeneratorService {
     $config_factory,
     $entity_serializer,
     $state,
+    $logger_factory,
   ) {
     $this->fileStorageManager = $file_storage_manager;
     $this->configFactory = $config_factory;
     $this->entitySerializer = $entity_serializer;
     $this->state = $state;
+    $this->logger = $logger_factory->get('headless_entity_serializer');
+
   }
 
   /**
+   * Fully generate JSON files for a selected entity type.
    *
+   * This command generate all existing serialized files for the
+   * entity type passed by parameter.
    */
   public function fullGenerateEntityType($entity_type_id) {
     $storage = \Drupal::entityTypeManager()->getStorage($entity_type_id);
@@ -122,25 +130,42 @@ class GeneratorService {
     $entityTypes = $config->get('entity_types');
 
     foreach ($entityTypes as $entityType) {
+
       $storage = \Drupal::entityTypeManager()->getStorage($entityType);
-      // $entityFieldManager = \Drupal::service('entity_field.manager');
-      // $baseFields = $entityFieldManager->getBaseFieldDefinitions($entityType);
-      // $updateProperty = "changed";
 
       $query = $storage->getQuery()->latestRevision();
       $changed_entity_ids = $query
         ->condition("changed", $last_run_timestamp, '>')
         ->execute();
+
       $created_entity_ids = $query
         ->condition('created', $last_run_timestamp, '>')
         ->execute();
+
       $ids_to_process = array_unique(array_merge($changed_entity_ids, $created_entity_ids));
-      dump($ids_to_process);
+      $totalEntities = count($ids_to_process);
+      $this->logger->info('Init generation for entity type: {entityType}. Total exported: {count}.',
+      ['entityType' => $entityType, 'count' => count($ids_to_process)]);
+
+      $progress = 0;
+
       foreach ($ids_to_process as $entityId) {
         $entity = $storage->load($entityId);
         $this->entitySerializer->exportEntity($entity);
+        $progress++;
+        $percentage = round(($progress / $totalEntities) * 100);
+        $this->logger->info('Processed {current} of {total} entities for {type} ({percentage}%).', [
+          'current' => $progress,
+          'total' => $totalEntities,
+          'type' => $entityType,
+          'percentage' => $percentage,
+        ]);
       }
+      $this->logger->info('Cleaning files....');
       $this->removeFileNotInDataBase($storage, $entityType);
+
+      $this->logger->info('Generating Alias....');
+      $this->generateAlias();
 
     }
 
@@ -213,7 +238,6 @@ class GeneratorService {
 
     }
 
-    $this->generateAlias();
     return [
       "status" => TRUE,
       "message" => "The generation was successful",
@@ -245,10 +269,14 @@ class GeneratorService {
       $path = $aliasEntity->path;
       $alias = $aliasEntity->alias;
 
-      $key = $langcode . $alias;
+      $key = $alias;
 
       if (!array_key_exists($langcode, $result)) {
         $result[$langcode] = [];
+      }
+      $path = str_replace("/", "-", $path);
+      if (!empty($path) && $path[0] === '-') {
+        $path = substr($path, 1);
       }
       $result[$langcode][$key] = $path;
     }

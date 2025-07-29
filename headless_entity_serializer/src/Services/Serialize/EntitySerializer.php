@@ -26,16 +26,31 @@ class EntitySerializer {
   protected $serializer;
 
   /**
+   * Configuration array for entity types that should be serialized inline.
+   *
+   * This property holds an array of entity types configured to be serialized
+   * as part of their referencing entity, rather than as separate top-level
+   * JSON files.
+   *
+   * @var array
+   */
+  protected $entitiesInline;
+
+  /**
    * Constructs a new EntitySerializer object.
    *
    * @param \Drupal\headless_entity_serializer\Storage\FileStorageManager $file_storage_manager
    *   The file storage manager service.
    * @param \Symfony\Component\Serializer\SerializerInterface $serializer
    *   The Symfony serializer service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory service.   *.
    */
-  public function __construct($file_storage_manager, $serializer) {
+  public function __construct($file_storage_manager, $serializer, $config_factory) {
     $this->fileStorageManager = $file_storage_manager;
     $this->serializer = $serializer;
+    $config = $config_factory->get('headless_entity_serializer.settings');
+    $this->entitiesInline = $config->get('entity_types_inline');
   }
 
   /**
@@ -55,59 +70,49 @@ class EntitySerializer {
     $entityTypeId = $entity->getEntityTypeId();
     $languageId = $entity->language()->getId();
     $entityId = $entity->id();
-    // Check if the entity has the getTranslationLanguages method, typically
-    // found on ContentEntityInterface, indicating it might have multiple translations.
+
     if (method_exists($entity, "getTranslationLanguages")) {
       // Get all available translation languages for this entity.
       $languages = $entity->getTranslationLanguages();
       foreach ($languages as $id => $language) {
-        // Get the specific translation of the entity.
         $translation = $entity->getTranslation($id);
-        // Serialize the translated entity data to JSON.
-        $this->processParagprahs($entity);
-
+        $this->processInlineEntities($entity);
         $json_data = $this->serializer->serialize($translation, 'json', []);
-        // Save the JSON data to a file using the FileStorageManager.
         $this->fileStorageManager->saveData($json_data, $entityId, $entityTypeId, $id);
       }
     }
     else {
-      // For entities that are not translatable or do not implement
-      // getTranslationLanguages, serialize the entity directly.
-      $this->processParagprahs($entity);
+      $this->processInlineEntities($entity);
       $json_data = $this->serializer->serialize($entity, 'json', []);
-      // Save the JSON data to a file using the FileStorageManager.
       $this->fileStorageManager->saveData($json_data, $entityId, $entityTypeId, $languageId);
     }
   }
 
   /**
+   * Processes entity reference inline and recursively exports.
    *
+   * This method iterates through the field definitions of the given entity.
+   * If a field is an entity reference and its target entity type is configured
+   * to be serialized "inline" (meaning it should be exported along with the
+   * main entity), then the referenced entities are recursively passed to the
+   * `exportEntity` method for serialization. This ensures that related
+   * entities are also exported if desired.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity whose fields are to be processed for inline entity exports.
    */
-  protected function processParagprahs($entity) {
-    dump("hola");
+  protected function processInlineEntities($entity) {
     $field_definitions = $entity->getFieldDefinitions();
     foreach ($field_definitions as $field_name => $field_definition) {
-      if (
-        $field_definition->getType() === 'entity_reference_revisions' &&
-        $field_definition->getSetting('target_type') === 'paragraph'
-      ) {
+      $targetType = $field_definition->getSetting('target_type');
+      if (array_key_exists($targetType, $this->entitiesInline)) {
         if (!$entity->get($field_name)->isEmpty()) {
           foreach ($entity->get($field_name) as $item) {
-            /** @var \Drupal\paragraphs\ParagraphInterface|null $paragraph */
-            // This gets the actual entity object.
-            $paragraph = $item->entity;
-            dump("hola 2");
-              // Recursively call exportEntity for the paragraph.
-              // Note: A paragraph itself might have paragraph fields, so this
-              // recursion will naturally handle nested paragraphs.
-              $this->exportEntity($paragraph);
-
+            $entityInline = $item->entity;
+            $this->exportEntity($entityInline);
           }
         }
-
       }
-
     }
 
   }

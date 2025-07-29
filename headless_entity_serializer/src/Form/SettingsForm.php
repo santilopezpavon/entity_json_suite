@@ -82,8 +82,16 @@ class SettingsForm extends ConfigFormBase {
       '#type' => 'checkboxes',
       '#title' => $this->t('Entity Types to Serialize'),
       '#description' => $this->t('Select the entity types you want to serialize to JSON files.'),
-      '#options' => $content_types,
+      '#options' => $content_types["options"],
       '#default_value' => $config->get('entity_types') ?: [],
+    ];
+
+    $form['entity_types_inline'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Entity Types to Serialize in inline entity form'),
+      '#description' => $this->t('Select the entity types you want to serialize to JSON files.'),
+      '#options' => $content_types["optionsNotChange"],
+      '#default_value' => $config->get('entity_types_inline') ?: [],
     ];
 
     $form['destination_directory'] = [
@@ -93,7 +101,6 @@ class SettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('destination_directory'),
       '#required' => TRUE,
     ];
-
     return parent::buildForm($form, $form_state);
   }
 
@@ -119,6 +126,7 @@ class SettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $this->config('headless_entity_serializer.settings')
       ->set('entity_types', array_filter($form_state->getValue('entity_types')))
+      ->set('entity_types_inline', array_filter($form_state->getValue('entity_types_inline')))
       ->set('destination_directory', $form_state->getValue('destination_directory'))
       ->save();
 
@@ -135,17 +143,25 @@ class SettingsForm extends ConfigFormBase {
   private function getAllContentTypes() {
     $definitions = $this->entityTypeManager->getDefinitions();
     $options = [];
+    $optionsNotChange = [];
     foreach ($definitions as $key => $value) {
-      if ($value->getHandlerClasses()['storage'] ?? FALSE) {
+      try {
+        $entityFieldManager = \Drupal::service('entity_field.manager');
+        $baseFields = $entityFieldManager->getBaseFieldDefinitions($key);
         $label = $value->getLabel();
-        if (in_array($key, $this->entityTypesCompatibles)) {
-          $label .= " (RECOMENDADO)";
+        if (array_key_exists("changed", $baseFields)) {
+          $options[$key] = $label;
         }
-        $options[$key] = $label . " (" . $key . ")";
+        else {
+          $optionsNotChange[$key] = $label;
+        }
+      }
+      catch (\Throwable $th) {
+        // Throw $th;.
       }
     }
     asort($options);
-    return $options;
+    return ["options" => $options, "optionsNotChange" => $optionsNotChange];
   }
 
 }

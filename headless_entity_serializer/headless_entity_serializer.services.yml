@@ -4,6 +4,7 @@ services:
     arguments:
       - '@headless_entity_serializer.file_storage_manager'
       - '@serializer'
+      - '@config.factory'
   headless_entity_serializer.file_storage_manager: 
     class: Drupal\headless_entity_serializer\Services\Storage\FileStorageManager
     arguments:
@@ -18,3 +19,4 @@ services:
       - '@config.factory'
       - '@headless_entity_serializer.entity_serializer'
       - '@state'
+      - '@logger.factory'
