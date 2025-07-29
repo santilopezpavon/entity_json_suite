@@ -20,3 +20,5 @@ services:
       - '@headless_entity_serializer.entity_serializer'
       - '@state'
       - '@logger.factory'
+      - '@entity_type.manager'
+

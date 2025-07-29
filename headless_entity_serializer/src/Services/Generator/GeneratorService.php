@@ -47,6 +47,13 @@ class GeneratorService {
   protected $logger;
 
   /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
    * Constructs a new GeneratorService object.
    *
    * @param \Drupal\headless_entity_serializer\Storage\FileStorageManager $file_storage_manager
@@ -59,6 +66,8 @@ class GeneratorService {
    *   The state service.
    * @param \Drupal\Core\Logger\LoggerChannel $logger_factory
    *   The logger factory channel.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
   public function __construct(
     $file_storage_manager,
@@ -66,13 +75,14 @@ class GeneratorService {
     $entity_serializer,
     $state,
     $logger_factory,
+    $entity_type_manager,
   ) {
     $this->fileStorageManager = $file_storage_manager;
     $this->configFactory = $config_factory;
     $this->entitySerializer = $entity_serializer;
     $this->state = $state;
     $this->logger = $logger_factory->get('headless_entity_serializer');
-
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -149,7 +159,7 @@ class GeneratorService {
 
     foreach ($entityTypes as $entityType) {
 
-      $storage = \Drupal::entityTypeManager()->getStorage($entityType);
+      $storage = $this->entityTypeManager->getStorage($entityType);
 
       $query = $storage->getQuery()->latestRevision();
       $changed_entity_ids = $query
@@ -166,25 +176,29 @@ class GeneratorService {
       ['entityType' => $entityType, 'count' => count($ids_to_process)]);
 
       $progress = 0;
-
+      $priorPercentage = 0;
       foreach ($ids_to_process as $entityId) {
         $entity = $storage->load($entityId);
         $this->entitySerializer->exportEntity($entity);
         $progress++;
         $percentage = round(($progress / $totalEntities) * 100);
-        $this->logger->info('Processed {current} of {total} entities for {type} ({percentage}%).', [
-          'current' => $progress,
-          'total' => $totalEntities,
-          'type' => $entityType,
-          'percentage' => $percentage,
-        ]);
+
+        if ($priorPercentage != $percentage) {
+          $priorPercentage = $percentage;
+          $this->logger->info('Processed {current} of {total} entities for {type} ({percentage}%).', [
+            'current' => $progress,
+            'total' => $totalEntities,
+            'type' => $entityType,
+            'percentage' => $percentage,
+          ]);
+        }
+
       }
       $this->logger->info('Cleaning files....');
       $this->removeFileNotInDataBase($storage, $entityType);
 
       $this->logger->info('Generating Alias....');
       $this->generateAlias();
-
     }
 
     $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
