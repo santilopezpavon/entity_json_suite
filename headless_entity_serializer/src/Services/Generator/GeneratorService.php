@@ -86,6 +86,14 @@ class GeneratorService {
   }
 
   /**
+   *
+   */
+  public function resetState() {
+    $this->state->set('headless_entity_serializer.last_incremental_run', 0);
+
+  }
+
+  /**
    * Fully generate JSON files for a selected entity type.
    *
    * This command generate all existing serialized files for the
@@ -234,8 +242,9 @@ class GeneratorService {
 
     // Files directory to remove.
     $deleted_entity_ids = array_diff($serialized_entity_ids, $current_db_ids);
+
     foreach ($deleted_entity_ids as $deleted_entity_id) {
-      $this->fileStorageManager->deleteEntityDirectory($entityType, $deleted_entity_id);
+      $this->fileStorageManager->deleteEntityDirectory($entity_type_id, $deleted_entity_id);
     }
 
     // Translation to remove.
@@ -264,7 +273,7 @@ class GeneratorService {
         $serialized_entity_ids = $grouped[$language_id];
         $deleted_entity_ids = array_diff($serialized_entity_ids, $current_db_ids);
         foreach ($deleted_entity_ids as $deleted_entity_id) {
-          $this->fileStorageManager->deleteEntityFile($entityType, $deleted_entity_id, $language_id);
+          $this->fileStorageManager->deleteEntityFile($entity_type_id, $deleted_entity_id, $language_id);
         }
       }
 

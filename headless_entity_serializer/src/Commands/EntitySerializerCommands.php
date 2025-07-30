@@ -51,6 +51,17 @@ class EntitySerializerCommands extends DrushCommands {
   }
 
   /**
+   *
+   * @command headless-entity-serializer:reset-state
+   * @aliases hes-reset-state
+   * @usage hes-reset-state
+   * Fully regenerates JSON files for all configured entity types.
+   */
+  public function resetState($entity_type_id = NULL) {
+    $this->io()->section('Init to reset the state');
+    $this->generator->resetState();    
+  }
+  /**
    * Performs an incremental update of serialized entity JSON files.
    *
    * This command identifies new, updated, or deleted entities since the last
@@ -64,6 +75,28 @@ class EntitySerializerCommands extends DrushCommands {
   public function incrementalUpdate() {
     $this->io()->section('Executing incremental update of serialized entities and aliases');
     $this->generator->incrementalGenerate();
+  }
+
+
+
+  /**
+   *
+   * @command headless-entity-serializer:test
+   * @aliases hes-test
+   * @usage hes-test
+   */
+  public function test() {
+    $this->io()->section('Init to reset the state');
+    /*$nids = \Drupal::entityQuery('node')->execute(); 
+
+    foreach ($nids as $nid) {
+      $node = \Drupal\node\Entity\Node::load($nid);
+      if ($node) {
+        $node->delete();
+      }
+    }*/
+    //$result = \Drupal::service("headless_entity_serializer.file_storage_manager")->getEntitiesInFiles("node");
+    //dump($result);
   }
 
 }

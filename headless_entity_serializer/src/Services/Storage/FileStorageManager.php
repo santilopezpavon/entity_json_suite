@@ -76,10 +76,23 @@ class FileStorageManager {
    * @return bool
    *   TRUE on successful creation or if it already exists, FALSE on failure.
    */
-  public function createDirectory() {
+  public function createDirectory(): bool {
     $directory = $this->getBaseDirectory();
-    $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
-    return TRUE;
+    if (!$directory) {
+      return FALSE;
+    }
+
+    try {
+      return $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('No se pudo crear el directorio base de serialización "{directory}": @message', [
+        'directory' => $directory,
+        '@message' => $e->getMessage(),
+      ]);
+      // Re-throw the specific exception.
+      throw $e;
+    }
   }
 
   /**
@@ -102,13 +115,34 @@ class FileStorageManager {
    *   TRUE on successful save, FALSE on failure.
    */
   public function saveData($json_data, $entity_id, $entity_type_id, $language_id) {
-    $directory = $this->getBaseDirectory();
-    $directory = $directory . "/" . $entity_type_id . "/" . $entity_id . "/";
+    $directory = $this->getEntityDirectory($entity_type_id, $entity_id);
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
     $path = $directory . "" . $language_id . ".json";
     $this->fileSystem->saveData($json_data, $path, FileSystemInterface::EXISTS_REPLACE);
 
     return TRUE;
+  }
+
+  /**
+   * Gets the specific directory for an entity, including the bucket structure.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID.
+   * @param string $entity_id
+   *   The ID of the entity.
+   *
+   * @return string|false
+   *   The entity-specific directory path, or FALSE if the base directory
+   *   is not configured.
+   */
+  private function getEntityDirectory($entity_type_id, $entity_id) {
+    $directory = $this->getBaseDirectory();
+    if (is_numeric($entity_id)) {
+      $bucket = floor($entity_id / 1000);
+      return $directory . "/" . $entity_type_id . "/" . $bucket . "/" . $entity_id . "/";
+    }
+    return $directory . "/" . $entity_type_id . "/" . $entity_id . "/";
+
   }
 
   /**
@@ -130,22 +164,27 @@ class FileStorageManager {
    */
   public function getEntitiesInFiles($entity_type_id) {
     $directory = $this->getBaseDirectory() . "/" . $entity_type_id;
-
-    $files = $this->fileSystem->scanDirectory($directory, '/.*/');
     $resultado = [];
 
-    foreach ($files as $uri => $file_info) {
-      if (preg_match('#' . $entity_type_id . '/(\d+)/(\w+)\.json$#', $uri, $coincidencias)) {
-        $id = $coincidencias[1];
-        $idioma = $coincidencias[2];
-        if (!isset($resultado[$id])) {
-          $resultado[$id] = [];
-        }
-        if (!in_array($idioma, $resultado[$id])) {
-          $resultado[$id][] = $idioma;
+    try {
+      $files = $this->fileSystem->scanDirectory($directory, '/.*/');
+      foreach ($files as $uri => $file_info) {
+        if (preg_match('#' . $entity_type_id . '/\d+/(\d+)/(\w+)\.json$#', $uri, $coincidencias)) {
+          $id = $coincidencias[1];
+          $idioma = $coincidencias[2];
+          if (!isset($resultado[$id])) {
+            $resultado[$id] = [];
+          }
+          if (!in_array($idioma, $resultado[$id])) {
+            $resultado[$id][] = $idioma;
+          }
         }
       }
     }
+    catch (\Throwable $th) {
+      // Throw $th;.
+    }
+
     return $resultado;
   }
 
@@ -205,7 +244,7 @@ class FileStorageManager {
     if (!$base_directory) {
       return FALSE;
     }
-    $target_directory = $base_directory . '/' . $entity_type_id . '/' . $entity_id;
+    $target_directory = $this->getEntityDirectory($entity_type_id, $entity_id);
     try {
       $this->fileSystem->deleteRecursive($target_directory);
       return TRUE;
@@ -235,8 +274,9 @@ class FileStorageManager {
     if (!$base_directory) {
       return FALSE;
     }
+    $target_directory = $this->getEntityDirectory($entity_type_id, $entity_id);
 
-    $filepath = $base_directory . '/' . $entity_type_id . '/' . $entity_id . '/' . $language_id . '.json';
+    $filepath = $target_directory . '/' . $language_id . '.json';
     try {
       $this->fileSystem->delete($filepath);
       return TRUE;
