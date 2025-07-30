@@ -95,8 +95,8 @@ class EntitySerializerCommands extends DrushCommands {
         $node->delete();
       }
     }*/
-    //$result = \Drupal::service("headless_entity_serializer.file_storage_manager")->getEntitiesInFiles("node");
-    //dump($result);
+    $result = \Drupal::service("headless_entity_serializer.alias_manager")->generateAndSaveAliases();
+    dump($result);
   }
 
 }

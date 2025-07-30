@@ -114,12 +114,16 @@ class FileStorageManager {
    * @return bool
    *   TRUE on successful save, FALSE on failure.
    */
-  public function saveData($json_data, $entity_id, $entity_type_id, $language_id) {
+  public function saveData($json_data, $entity_id, $entity_type_id, $language_id, $directory_add = NULL) {
     $directory = $this->getEntityDirectory($entity_type_id, $entity_id);
+    if ($directory_add !== NULL) {
+      $directory = $directory . $directory_add;
+    }
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
-    $path = $directory . "" . $language_id . ".json";
-    $this->fileSystem->saveData($json_data, $path, FileSystemInterface::EXISTS_REPLACE);
 
+    $path = $directory . "" . $language_id . ".json";
+    dump($path);
+    $this->fileSystem->saveData($json_data, $path, FileSystemInterface::EXISTS_REPLACE);
     return TRUE;
   }
 

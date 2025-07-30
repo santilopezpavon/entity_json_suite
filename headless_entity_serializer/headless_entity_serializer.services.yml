@@ -22,3 +22,10 @@ services:
       - '@logger.factory'
       - '@entity_type.manager'
 
+  headless_entity_serializer.alias_manager:
+    class: Drupal\headless_entity_serializer\Services\Alias\AliasManager
+    arguments:
+      - '@database'
+      - '@headless_entity_serializer.file_storage_manager'
+      - '@logger.factory'
+      - '@language_manager' # Inyectar si es necesario para futuras extensiones
