@@ -70,7 +70,6 @@ class EntitySerializer {
     $entityTypeId = $entity->getEntityTypeId();
     $languageId = $entity->language()->getId();
     $entityId = $entity->id();
-
     if (method_exists($entity, "getTranslationLanguages")) {
       // Get all available translation languages for this entity.
       $languages = $entity->getTranslationLanguages();

@@ -6,11 +6,13 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\headless_entity_serializer\Services\Alias\AliasBucketManager;
 
 /**
  * Service to manage file system operations for serialized entities.
  *
- * This includes bulk deletion and scanning for existing files.
+ * This class handles the creation, deletion, and retrieval of serialized
+ * entity data files, organizing them into a structured directory system.
  */
 class FileStorageManager {
 
@@ -43,6 +45,13 @@ class FileStorageManager {
   protected $languageManager;
 
   /**
+   * The alias bucket manager service.
+   *
+   * @var \Drupal\headless_entity_serializer\Services\Alias\AliasBucketManager
+   */
+  protected $aliasBucketManager;
+
+  /**
    * Constructs a new FileStorageManager object.
    *
    * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -53,17 +62,21 @@ class FileStorageManager {
    *   The logger factory.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   The language manager.
+   * @param \Drupal\headless_entity_serializer\Services\Alias\AliasBucketManager $alias_bucket_manager
+   *   The alias bucket manager service.
    */
   public function __construct(
     FileSystemInterface $file_system,
     ConfigFactoryInterface $config_factory,
     LoggerChannelFactoryInterface $logger_factory,
     LanguageManagerInterface $language_manager,
+    AliasBucketManager $alias_bucket_manager,
   ) {
     $this->fileSystem = $file_system;
     $this->configFactory = $config_factory;
     $this->logger = $logger_factory->get('headless_entity_serializer');
     $this->languageManager = $language_manager;
+    $this->aliasBucketManager = $alias_bucket_manager;
   }
 
   /**
@@ -75,6 +88,9 @@ class FileStorageManager {
    *
    * @return bool
    *   TRUE on successful creation or if it already exists, FALSE on failure.
+   *
+   * @throws \Throwable
+   *    If the directory could not be created.
    */
   public function createDirectory(): bool {
     $directory = $this->getBaseDirectory();
@@ -101,6 +117,7 @@ class FileStorageManager {
    * This method constructs the full path for the entity's JSON file based
    * on the configured base directory, entity type, entity ID, and language.
    * It ensures the necessary subdirectories exist before saving.
+   * It also calls the alias bucket manager to handle the path alias.
    *
    * @param string $json_data
    *   The JSON string to save.
@@ -110,6 +127,8 @@ class FileStorageManager {
    *   The entity type ID (e.g., 'node', 'user').
    * @param string $language_id
    *   The language code for the specific translation (e.g., 'en', 'es').
+   * @param string|null $directory_add
+   *   An optional subdirectory to append to the entity path.
    *
    * @return bool
    *   TRUE on successful save, FALSE on failure.
@@ -121,14 +140,21 @@ class FileStorageManager {
     }
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
 
-    $path = $directory . "" . $language_id . ".json";
-    dump($path);
+    $path = $directory . $language_id . ".json";
+
+    // Generate and save the alias before saving the entity data.
+    $baseDirectory = $this->getBaseDirectory();
+    $this->aliasBucketManager->generateAlias($json_data, $entity_type_id, $entity_id, $baseDirectory);
+
     $this->fileSystem->saveData($json_data, $path, FileSystemInterface::EXISTS_REPLACE);
     return TRUE;
   }
 
   /**
    * Gets the specific directory for an entity, including the bucket structure.
+   *
+   * For numeric IDs, a bucket is created based on the ID. For non-numeric IDs,
+   * a flat directory structure is used.
    *
    * @param string $entity_type_id
    *   The entity type ID.
@@ -141,6 +167,10 @@ class FileStorageManager {
    */
   private function getEntityDirectory($entity_type_id, $entity_id) {
     $directory = $this->getBaseDirectory();
+    if (!$directory) {
+      return FALSE;
+    }
+
     if (is_numeric($entity_id)) {
       $bucket = floor($entity_id / 1000);
       return $directory . "/" . $entity_type_id . "/" . $bucket . "/" . $entity_id . "/";
@@ -154,7 +184,7 @@ class FileStorageManager {
    *
    * This method scans the file system for JSON files belonging to a specific
    * entity type. It expects a directory structure like:
-   * [destination_directory]/[entity_type_id]/[entity_id]/[langcode].json.
+   * [destination_directory]/[entity_type_id]/[bucket]/[entity_id]/[langcode].json.
    *
    * @param string $entity_type_id
    *   The entity type ID (e.g., 'node', 'user').
@@ -186,7 +216,8 @@ class FileStorageManager {
       }
     }
     catch (\Throwable $th) {
-      // Throw $th;.
+      // The current implementation swallows the exception. It's recommended
+      // to log it here instead, e.g., \Drupal::logger('my_module')->error($th->getMessage());
     }
 
     return $resultado;
@@ -203,10 +234,14 @@ class FileStorageManager {
   public function deleteAllSerializedFiles(): bool {
     try {
       $base_directory = $this->getBaseDirectory();
+      if (!$base_directory) {
+        return FALSE;
+      }
       $this->fileSystem->deleteRecursive($base_directory . "/");
       return TRUE;
     }
     catch (\Throwable $th) {
+      // It's recommended to log the exception.
       return FALSE;
     }
   }
@@ -233,6 +268,7 @@ class FileStorageManager {
    * Deletes the directory for a specific entity ID within its entity type.
    *
    * This means removing: [destination_directory]/[entity_type_id]/[entity_id]/
+   * It also removes any associated path aliases before deleting the directory.
    *
    * @param string $entity_type_id
    *   The entity type ID.
@@ -249,12 +285,16 @@ class FileStorageManager {
       return FALSE;
     }
     $target_directory = $this->getEntityDirectory($entity_type_id, $entity_id);
+
+    // Remove any path aliases associated with this entity's files.
+    $this->aliasBucketManager->removeAliasEntities($target_directory, $base_directory);
+
     try {
       $this->fileSystem->deleteRecursive($target_directory);
       return TRUE;
     }
     catch (\Throwable $th) {
-
+      // It's recommended to log the exception.
       return FALSE;
     }
   }
@@ -280,13 +320,16 @@ class FileStorageManager {
     }
     $target_directory = $this->getEntityDirectory($entity_type_id, $entity_id);
 
-    $filepath = $target_directory . '/' . $language_id . '.json';
+    $filepath = $target_directory . $language_id . '.json';
+    // Remove the associated path alias before deleting the file.
+    $this->aliasBucketManager->removeAliasEntity($filepath, $base_directory);
+
     try {
       $this->fileSystem->delete($filepath);
       return TRUE;
     }
     catch (\Throwable $th) {
-
+      // It's recommended to log the exception.
       return FALSE;
     }
   }

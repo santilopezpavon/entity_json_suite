@@ -137,9 +137,6 @@ class GeneratorService {
       $this->fullGenerateEntityType($entityType);
     }
 
-    // Generete the alias files.
-    $this->generateAlias();
-
     // Set state.
     $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
 
@@ -205,8 +202,6 @@ class GeneratorService {
       $this->logger->info('Cleaning files....');
       $this->removeFileNotInDataBase($storage, $entityType);
 
-      $this->logger->info('Generating Alias....');
-      $this->generateAlias();
     }
 
     $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
@@ -279,54 +274,6 @@ class GeneratorService {
 
     }
 
-    return [
-      "status" => TRUE,
-      "message" => "The generation was successful",
-    ];
-  }
-
-  /**
-   * Generates and saves JSON files for all path aliases.
-   *
-   * This method queries all path aliases from the database,
-   * groups them by language, and saves each language's aliases into
-   * a separate JSON file.
-   *
-   * The structure is: [destination_directory]/alias/[langcode].json.
-   *
-   * @return bool
-   *   TRUE if all alias files were generated successfully, FALSE otherwise.
-   */
-  public function generateAlias() {
-    $aliases = \Drupal::database()->select('path_alias', 'pa')
-      ->fields('pa', ['path', 'alias', 'langcode'])
-      ->execute()
-      ->fetchAll();
-
-    $result = [];
-
-    foreach ($aliases as $key => $aliasEntity) {
-      $langcode = $aliasEntity->langcode;
-      $path = $aliasEntity->path;
-      $alias = $aliasEntity->alias;
-
-      $key = $alias;
-
-      if (!array_key_exists($langcode, $result)) {
-        $result[$langcode] = [];
-      }
-      $path = str_replace("/", "-", $path);
-      if (!empty($path) && $path[0] === '-') {
-        $path = substr($path, 1);
-      }
-      $result[$langcode][$key] = $path;
-    }
-
-    foreach ($result as $key => $value) {
-      $jsonData = json_encode($result[$key]);
-      $this->fileStorageManager->saveData($jsonData, "alias", "alias", $key);
-
-    }
     return [
       "status" => TRUE,
       "message" => "The generation was successful",

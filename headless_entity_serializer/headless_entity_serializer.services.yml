@@ -1,4 +1,8 @@
 services:
+  headless_entity_serializer.alias_bucket_manager:
+    class: Drupal\headless_entity_serializer\Services\Alias\AliasBucketManager
+    arguments:
+      - '@file_system'
   headless_entity_serializer.entity_serializer:
     class: Drupal\headless_entity_serializer\Services\Serialize\EntitySerializer
     arguments:
@@ -12,6 +16,7 @@ services:
       - '@config.factory'
       - '@logger.factory'
       - '@language_manager'
+      - '@headless_entity_serializer.alias_bucket_manager'
   headless_entity_serializer.generator:
     class: Drupal\headless_entity_serializer\Services\Generator\GeneratorService
     arguments:
@@ -21,11 +26,3 @@ services:
       - '@state'
       - '@logger.factory'
       - '@entity_type.manager'
-
-  headless_entity_serializer.alias_manager:
-    class: Drupal\headless_entity_serializer\Services\Alias\AliasManager
-    arguments:
-      - '@database'
-      - '@headless_entity_serializer.file_storage_manager'
-      - '@logger.factory'
-      - '@language_manager' # Inyectar si es necesario para futuras extensiones
