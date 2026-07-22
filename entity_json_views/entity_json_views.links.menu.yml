@@ -1,0 +1,5 @@
+entity_json_views.settings:
+  title: 'Entity JSON Views'
+  description: 'Configure export of Views as static JSON files.'
+  route_name: entity_json_views.settings
+  parent: entity_json_suite

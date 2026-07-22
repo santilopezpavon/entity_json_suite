@@ -1,0 +1,4 @@
+entity_json_views.settings:
+  title: 'Views'
+  route_name: entity_json_views.settings
+  base_route: headless_entity_serializer.settings_form

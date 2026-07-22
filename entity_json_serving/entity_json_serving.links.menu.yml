@@ -1,0 +1,5 @@
+entity_json_serving.settings:
+  title: 'Entity JSON Serving'
+  description: 'Configure entity JSON HTTP serving routes.'
+  route_name: entity_json_serving.settings
+  parent: entity_json_suite

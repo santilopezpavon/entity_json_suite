@@ -8,6 +8,7 @@ A collection of Drupal modules for generating static JSON files from content ent
 |--------|-------------|
 | [headless_entity_serializer](headless_entity_serializer/) | Serializes Drupal entities (nodes, users, taxonomy terms, etc.) into structured JSON files on disk. Supports full regeneration and incremental updates. |
 | [entity_json_serving](entity_json_serving/) | HTTP serving module: serves serialized JSON files via GET endpoints with ETag, language negotiation, and path alias resolution. |
+| [entity_json_views](entity_json_views/) | Exports Drupal Views (REST export displays with `data_field` row plugin) as static JSON files. Drush command `hev-export` and serving route `/json/views/{view_id}/{display_id}`. |
 
 ## Requirements
 

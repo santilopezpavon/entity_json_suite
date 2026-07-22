@@ -61,6 +61,9 @@ ddev exec drush hes-incremental
 
 # Resetear estado del incremental (fuerza regenerar todo en el próximo incremental)
 ddev exec drush hes-reset-state
+
+# Exportar vistas como JSON estático
+ddev exec drush hev-export
 ```
 
 ## Tests
@@ -81,15 +84,28 @@ entity_json_suite/
 ├── headless_entity_serializer/          # Módulo base: generación JSON
 │   └── src/Services/Storage/FileStorageManager.php  # + getEntityFilePath()
 │
-└── entity_json_serving/                 # Módulo serving HTTP
+├── entity_json_serving/               # Módulo serving HTTP
+│   ├── src/
+│   │   ├── Controller/EntityJsonController.php   # 2 endpoints
+│   │   ├── Resolver/AliasResolver.php            # Resolución de alias vía path_alias
+│   │   └── PathProcessor/AliasPathProcessor.php  # Multi-segment alias support
+│   ├── config/schema/entity_json_serving.schema.yml
+│   ├── entity_json_serving.info.yml
+│   ├── entity_json_serving.permissions.yml
+│   ├── entity_json_serving.routing.yml
+│   └── entity_json_serving.services.yml
+│
+└── entity_json_views/                 # Módulo exportación de vistas
     ├── src/
-    │   ├── Controller/EntityJsonController.php   # 3 endpoints
-    │   └── Resolver/AliasResolver.php            # Resolución de alias vía path_alias
-    ├── config/schema/entity_json_serving.schema.yml
-    ├── entity_json_serving.info.yml
-    ├── entity_json_serving.permissions.yml
-    ├── entity_json_serving.routing.yml
-    └── entity_json_serving.services.yml
+    │   ├── Controller/ViewsExportController.php    # GET /json/views/{view_id}/{display_id}
+    │   ├── Form/ViewsExportSettingsForm.php        # Admin config
+    │   ├── Services/ViewsExporter.php              # Export service
+    │   └── Commands/ViewsExportCommands.php        # drush hev-export
+    ├── config/schema/entity_json_views.schema.yml
+    ├── entity_json_views.info.yml
+    ├── entity_json_views.permissions.yml
+    ├── entity_json_views.routing.yml
+    └── entity_json_views.services.yml
 ```
 
 ## entity_json_serving — Rutas HTTP
@@ -97,9 +113,8 @@ entity_json_suite/
 | Ruta | Método | Descripción |
 |------|--------|-------------|
 | `GET /json/{entity_type}/{entity_id}/{langcode}` | `serveEntity()` | BinaryFileResponse (streaming, ETag, 304) |
-| `GET /json/{entity_type}?page=0&limit=100` | `serveList()` | JsonResponse paginado |
 | `GET /json/path/{alias}` | `serveByAlias()` | Alias → entity JSON |
 
 - Permiso requerido: `access entity json`
-- Cache-Control: 3600s entity, 300s list
+- Cache-Control: 3600s entity
 - 304 Not Modified vía `isNotModified()` cuando el cliente envía ETag/If-Modified-Since

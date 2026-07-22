@@ -1,0 +1,4 @@
+entity_json_serving.settings:
+  title: 'Serving'
+  route_name: entity_json_serving.settings
+  base_route: headless_entity_serializer.settings_form

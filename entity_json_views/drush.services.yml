@@ -1,0 +1,7 @@
+services:
+  entity_json_views.drush_commands:
+    class: Drupal\entity_json_views\Commands\ViewsExportCommands
+    tags:
+      - { name: drush.command }
+    arguments:
+      - '@entity_json_views.exporter'

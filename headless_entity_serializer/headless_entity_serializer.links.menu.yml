@@ -1,5 +1,12 @@
+entity_json_suite:
+  title: 'Entity JSON Suite'
+  description: 'Configure Entity JSON Suite modules.'
+  route_name: headless_entity_serializer.settings_form
+  parent: system.admin_config_development
+  weight: -10
+
 headless_entity_serializer.settings_form:
-  title: 'Entity Serialization Settings'
+  title: 'Entity Serialization'
   description: 'Configure entity types to serialize and destination directory.'
   route_name: headless_entity_serializer.settings_form
-  parent: system.admin_config
+  parent: entity_json_suite

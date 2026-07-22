@@ -1,0 +1,16 @@
+entity_json_views.settings:
+  type: config_object
+  label: 'Entity JSON Views settings'
+  mapping:
+    views:
+      type: sequence
+      label: 'Views to export'
+      sequence:
+        type: mapping
+        mapping:
+          view_id:
+            type: string
+            label: 'View machine name'
+          display_id:
+            type: string
+            label: 'Display ID'

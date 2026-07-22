@@ -1,4 +1,19 @@
 entity_json_serving.serve_entity:
+  path: '/json/{entity_type}/{entity_id}/{langcode}'
+  defaults:
+    _controller: '\Drupal\entity_json_serving\Controller\EntityJsonController::serveEntity'
+  requirements:
+    _permission: 'access entity json'
+  options:
+    parameters:
+      entity_type:
+        type: string
+      entity_id:
+        type: string
+      langcode:
+        type: string
+
+entity_json_serving.serve_alias:
   path: '/json/path/{alias}'
   defaults:
     _controller: '\Drupal\entity_json_serving\Controller\EntityJsonController::serveByAlias'
@@ -9,3 +24,11 @@ entity_json_serving.serve_entity:
     parameters:
       alias:
         type: string
+
+entity_json_serving.settings:
+  path: '/admin/config/entity-json-serving'
+  defaults:
+    _form: '\Drupal\entity_json_serving\Form\SettingsForm'
+    _title: 'Entity JSON Serving Configuration'
+  requirements:
+    _permission: 'administer site configuration'

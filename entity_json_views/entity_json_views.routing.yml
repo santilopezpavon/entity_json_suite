@@ -1,0 +1,14 @@
+entity_json_views.serve:
+  path: '/json/views/{view_id}/{display_id}'
+  defaults:
+    _controller: '\Drupal\entity_json_views\Controller\ViewsExportController::serveView'
+  requirements:
+    _permission: 'access entity json views'
+
+entity_json_views.settings:
+  path: '/admin/config/entity-json-views'
+  defaults:
+    _form: '\Drupal\entity_json_views\Form\ViewsExportSettingsForm'
+    _title: 'Entity JSON Views settings'
+  requirements:
+    _permission: 'administer site configuration'

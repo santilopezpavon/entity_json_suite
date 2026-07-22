@@ -1,0 +1,4 @@
+headless_entity_serializer.settings_form:
+  title: 'Serialization'
+  route_name: headless_entity_serializer.settings_form
+  base_route: headless_entity_serializer.settings_form

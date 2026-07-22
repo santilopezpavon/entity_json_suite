@@ -1,0 +1,4 @@
+access entity json views:
+  title: 'Access Entity JSON Views'
+  description: 'Access exported View JSON files via the /json/views/* routes.'
+  restrict access: false

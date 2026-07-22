@@ -1,0 +1,7 @@
+services:
+  entity_json_views.exporter:
+    class: Drupal\entity_json_views\Services\ViewsExporter
+    arguments:
+      - '@config.factory'
+      - '@file_system'
+      - '@logger.factory'
