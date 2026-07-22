@@ -1,7 +1,8 @@
 name: 'Headless Entity Serializer'
 type: module
-description: 'Serializa entidades de Drupal a ficheros JSON para arquitecturas headless.'
+description: 'Serialize Drupal entities to JSON files for headless architectures.'
 core_version_requirement: ^9 || ^10 || ^11
 package: 'API'
+configure: headless_entity_serializer.settings_form
 dependencies:
-  - serialization
+  - drupal:serialization

@@ -1,0 +1,13 @@
+entity_json_serving.settings:
+  type: config_object
+  label: 'Entity JSON Serving settings'
+  mapping:
+    default_max_age:
+      type: integer
+      label: 'Default Cache-Control max-age in seconds for entity responses'
+    list_max_age:
+      type: integer
+      label: 'Cache-Control max-age in seconds for list responses'
+    access_permission:
+      type: string
+      label: 'Permission required to access JSON routes'

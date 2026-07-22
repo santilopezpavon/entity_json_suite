@@ -1,0 +1,5 @@
+headless_entity_serializer.settings_form:
+  title: 'Entity Serialization Settings'
+  description: 'Configure entity types to serialize and destination directory.'
+  route_name: headless_entity_serializer.settings_form
+  parent: system.admin_config

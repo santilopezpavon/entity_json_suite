@@ -1,6 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\headless_entity_serializer\Services\Generator;
+
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 
 /**
  * Service for generating full and incremental sets of serialized entities.
@@ -14,7 +20,7 @@ class GeneratorService {
   /**
    * The file storage manager service.
    *
-   * @var \Drupal\headless_entity_serializer\Storage\FileStorageManager
+   * @var \Drupal\headless_entity_serializer\Services\Storage\FileStorageManager
    */
   private $fileStorageManager;
 
@@ -42,7 +48,7 @@ class GeneratorService {
   /**
    * The logger channel for this module.
    *
-   * @var \Drupal\Core\Logger\LoggerChannel
+   * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
 
@@ -54,9 +60,16 @@ class GeneratorService {
   protected $entityTypeManager;
 
   /**
+   * The language manager.
+   *
+   * @var \Drupal\Core\Language\LanguageManagerInterface
+   */
+  protected $languageManager;
+
+  /**
    * Constructs a new GeneratorService object.
    *
-   * @param \Drupal\headless_entity_serializer\Storage\FileStorageManager $file_storage_manager
+   * @param \Drupal\headless_entity_serializer\Services\Storage\FileStorageManager $file_storage_manager
    *   The file storage manager service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory service.
@@ -64,18 +77,21 @@ class GeneratorService {
    *   The entity serializer service.
    * @param \Drupal\Core\State\StateInterface $state
    *   The state service.
-   * @param \Drupal\Core\Logger\LoggerChannel $logger_factory
-   *   The logger factory channel.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
+   *   The logger factory.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
+   * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
+   *   The language manager.
    */
   public function __construct(
     $file_storage_manager,
     $config_factory,
     $entity_serializer,
     $state,
-    $logger_factory,
+    LoggerChannelFactoryInterface $logger_factory,
     $entity_type_manager,
+    LanguageManagerInterface $language_manager,
   ) {
     $this->fileStorageManager = $file_storage_manager;
     $this->configFactory = $config_factory;
@@ -83,28 +99,35 @@ class GeneratorService {
     $this->state = $state;
     $this->logger = $logger_factory->get('headless_entity_serializer');
     $this->entityTypeManager = $entity_type_manager;
+    $this->languageManager = $language_manager;
   }
 
   /**
-   *
+   * Resets the incremental update state timestamp.
    */
   public function resetState() {
     $this->state->set('headless_entity_serializer.last_incremental_run', 0);
-
   }
 
   /**
-   * Fully generate JSON files for a selected entity type.
+   * Fully generates JSON files for a single entity type.
    *
-   * This command generate all existing serialized files for the
-   * entity type passed by parameter.
+   * This method exports all entities of the given type to JSON files.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID (e.g., 'node').
    */
   public function fullGenerateEntityType($entity_type_id) {
-    $storage = \Drupal::entityTypeManager()->getStorage($entity_type_id);
+    $storage = $this->entityTypeManager->getStorage($entity_type_id);
     $entityIds = $storage->getQuery()->accessCheck(FALSE)->execute();
-    foreach ($entityIds as $entityId) {
-      $entity = $storage->load($entityId);
-      $this->entitySerializer->exportEntity($entity);
+
+    foreach (array_chunk($entityIds, 100) as $chunk) {
+      $entities = $storage->loadMultiple($chunk);
+      foreach ($entities as $entity) {
+        if ($entity instanceof ContentEntityInterface) {
+          $this->entitySerializer->exportEntity($entity);
+        }
+      }
     }
   }
 
@@ -119,25 +142,19 @@ class GeneratorService {
    */
   public function fullGenerate() {
 
-    // Get timestamp for state.
     $current_timestamp = time();
 
-    // Remove all files.
     $this->fileStorageManager->deleteAllSerializedFiles();
 
-    // Create a directory for entities files.
     $this->fileStorageManager->createDirectory();
 
-    // Get the entities types for generate JSON files.
     $config = $this->configFactory->get('headless_entity_serializer.settings');
     $entityTypes = $config->get('entity_types');
 
-    // Generate all entities in JSON files by types.
     foreach ($entityTypes as $entityType) {
       $this->fullGenerateEntityType($entityType);
     }
 
-    // Set state.
     $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
 
     return [
@@ -166,12 +183,11 @@ class GeneratorService {
 
       $storage = $this->entityTypeManager->getStorage($entityType);
 
-      $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE);
-      $changed_entity_ids = $query
+      $changed_entity_ids = $storage->getQuery()->latestRevision()->accessCheck(FALSE)
         ->condition("changed", $last_run_timestamp, '>')
         ->execute();
 
-      $created_entity_ids = $query
+      $created_entity_ids = $storage->getQuery()->latestRevision()->accessCheck(FALSE)
         ->condition('created', $last_run_timestamp, '>')
         ->execute();
 
@@ -182,22 +198,29 @@ class GeneratorService {
 
       $progress = 0;
       $priorPercentage = 0;
-      foreach ($ids_to_process as $entityId) {
-        $entity = $storage->load($entityId);
-        $this->entitySerializer->exportEntity($entity);
-        $progress++;
-        $percentage = round(($progress / $totalEntities) * 100);
 
-        if ($priorPercentage != $percentage) {
-          $priorPercentage = $percentage;
-          $this->logger->info('Processed {current} of {total} entities for {type} ({percentage}%).', [
-            'current' => $progress,
-            'total' => $totalEntities,
-            'type' => $entityType,
-            'percentage' => $percentage,
-          ]);
+      foreach (array_chunk($ids_to_process, 100) as $chunk) {
+        $entities = $storage->loadMultiple($chunk);
+        foreach ($entities as $entity) {
+          if ($entity instanceof ContentEntityInterface) {
+            $this->entitySerializer->exportEntity($entity);
+          }
+
+          if ($totalEntities > 0) {
+            $progress++;
+            $percentage = (int) round(($progress / $totalEntities) * 100);
+
+            if ($priorPercentage !== $percentage) {
+              $priorPercentage = $percentage;
+              $this->logger->info('Processed {current} of {total} entities for {type} ({percentage}%).', [
+                'current' => $progress,
+                'total' => $totalEntities,
+                'type' => $entityType,
+                'percentage' => $percentage,
+              ]);
+            }
+          }
         }
-
       }
       $this->logger->info('Cleaning files....');
       $this->removeFileNotInDataBase($storage, $entityType);
@@ -213,65 +236,51 @@ class GeneratorService {
   }
 
   /**
-   * Identifies and removes serialized entity files that no exist in the DB.
+   * Removes serialized files that no longer correspond to database entities.
    *
    * This method first checks for completely deleted entities (ID not in DB),
    * then checks for deleted translations of existing entities.
    *
-   * @param \Drupal\Core\Entity\ContentEntityStorageInterface $storage
+   * @param \Drupal\Core\Entity\EntityStorageInterface $storage
    *   The entity storage handler for the current entity type.
    * @param string $entity_type_id
    *   The ID of the entity type being processed.
    *
    * @return array
-   *   An associative array with 'status' (bool), 'count' (int of deleted files), and 'errors' (array of error messages).
+   *   An associative array with 'status' (bool), 'count' (int), and
+   *   'errors' (array).
    */
   public function removeFileNotInDataBase($storage, $entity_type_id) {
 
-    // Remove entity.
-    // Siempre consulta la última revisión.
+    // Remove deleted entities.
     $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE);
     $current_db_ids = $query->execute();
     $serialized_files_info = $this->fileStorageManager->getEntitiesInFiles($entity_type_id);
     $serialized_entity_ids = array_keys($serialized_files_info);
 
-    // Files directory to remove.
     $deleted_entity_ids = array_diff($serialized_entity_ids, $current_db_ids);
 
     foreach ($deleted_entity_ids as $deleted_entity_id) {
       $this->fileStorageManager->deleteEntityDirectory($entity_type_id, $deleted_entity_id);
     }
 
-    // Translation to remove.
-    $grouped = [];
+    // Remove orphaned translations.
+    // For each entity that still exists in the DB, check that all its
+    // serialized translation files still have a corresponding translation.
+    $existing_ids = array_intersect($serialized_entity_ids, $current_db_ids);
 
-    foreach ($serialized_files_info as $id => $langs) {
-      foreach ($langs as $langcode) {
-        // Si aún no existe ese idioma en el nuevo array, lo creamos.
-        if (!isset($grouped[$langcode])) {
-          $grouped[$langcode] = [];
-        }
-        $grouped[$langcode][] = $id;
-      }
-    }
+    foreach (array_chunk($existing_ids, 100) as $chunk) {
+      $loaded_entities = $storage->loadMultiple($chunk);
+      foreach ($chunk as $entity_id) {
+        $entity = $loaded_entities[$entity_id] ?? NULL;
+        $serialized_langs = $serialized_files_info[$entity_id] ?? [];
 
-    $language_manager = \Drupal::languageManager();
-    $languages = $language_manager->getLanguages();
-
-    foreach ($languages as $language_id => $value) {
-
-      if (array_key_exists($language_id, $grouped)) {
-        $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE)
-            // Filtrar por idioma.
-          ->condition('langcode', $language_id);
-        $current_db_ids = $query->execute();
-        $serialized_entity_ids = $grouped[$language_id];
-        $deleted_entity_ids = array_diff($serialized_entity_ids, $current_db_ids);
-        foreach ($deleted_entity_ids as $deleted_entity_id) {
-          $this->fileStorageManager->deleteEntityFile($entity_type_id, $deleted_entity_id, $language_id);
+        foreach ($serialized_langs as $langcode) {
+          if (!$entity instanceof ContentEntityInterface || !$entity->hasTranslation($langcode)) {
+            $this->fileStorageManager->deleteEntityFile($entity_type_id, (string) $entity_id, $langcode);
+          }
         }
       }
-
     }
 
     return [

@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\headless_entity_serializer\Services\Serialize;
+
+use Drupal\Core\Entity\ContentEntityInterface;
 
 /**
  * Service for serializing Drupal entities into JSON files.
@@ -14,7 +18,7 @@ class EntitySerializer {
   /**
    * The file storage manager service.
    *
-   * @var \Drupal\headless_entity_serializer\Storage\FileStorageManager
+   * @var \Drupal\headless_entity_serializer\Services\Storage\FileStorageManager
    */
   protected $fileStorageManager;
 
@@ -39,12 +43,12 @@ class EntitySerializer {
   /**
    * Constructs a new EntitySerializer object.
    *
-   * @param \Drupal\headless_entity_serializer\Storage\FileStorageManager $file_storage_manager
+   * @param \Drupal\headless_entity_serializer\Services\Storage\FileStorageManager $file_storage_manager
    *   The file storage manager service.
    * @param \Symfony\Component\Serializer\SerializerInterface $serializer
    *   The Symfony serializer service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   The config factory service.   *.
+   *   The config factory service.
    */
   public function __construct($file_storage_manager, $serializer, $config_factory) {
     $this->fileStorageManager = $file_storage_manager;
@@ -62,26 +66,34 @@ class EntitySerializer {
    * it serializes the default entity. The generated JSON files are saved
    * using the FileStorageManager.
    *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
-   *   The entity to export. This can be any entity type, but its translation
-   *   behavior will depend on its implementation.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity to export.
+   * @param array &$processed
+   *   Set of already processed entity keys to prevent infinite recursion.
+   *   Passed by reference across recursive calls.
    */
-  public function exportEntity($entity) {
+  public function exportEntity(ContentEntityInterface $entity, array &$processed = []) {
+    $key = $entity->getEntityTypeId() . '/' . $entity->id();
+    if (in_array($key, $processed)) {
+      return;
+    }
+    $processed[] = $key;
+
     $entityTypeId = $entity->getEntityTypeId();
     $languageId = $entity->language()->getId();
     $entityId = $entity->id();
-    if (method_exists($entity, "getTranslationLanguages")) {
-      // Get all available translation languages for this entity.
+
+    $this->processInlineEntities($entity, $processed);
+
+    if ($entity->isTranslatable()) {
       $languages = $entity->getTranslationLanguages();
       foreach ($languages as $id => $language) {
         $translation = $entity->getTranslation($id);
-        $this->processInlineEntities($entity);
         $json_data = $this->serializer->serialize($translation, 'json', []);
         $this->fileStorageManager->saveData($json_data, $entityId, $entityTypeId, $id);
       }
     }
     else {
-      $this->processInlineEntities($entity);
       $json_data = $this->serializer->serialize($entity, 'json', []);
       $this->fileStorageManager->saveData($json_data, $entityId, $entityTypeId, $languageId);
     }
@@ -95,20 +107,23 @@ class EntitySerializer {
    * to be serialized "inline" (meaning it should be exported along with the
    * main entity), then the referenced entities are recursively passed to the
    * `exportEntity` method for serialization. This ensures that related
-   * entities are also exported if desired.
+   * entities are also exported if desired. Recursion is prevented via the
+   * $processed set.
    *
-   * @param \Drupal\Core\Entity\EntityInterface $entity
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
    *   The entity whose fields are to be processed for inline entity exports.
+   * @param array &$processed
+   *   Set of already processed entity keys to prevent infinite recursion.
    */
-  protected function processInlineEntities($entity) {
+  protected function processInlineEntities(ContentEntityInterface $entity, array &$processed) {
     $field_definitions = $entity->getFieldDefinitions();
     foreach ($field_definitions as $field_name => $field_definition) {
       $targetType = $field_definition->getSetting('target_type');
-      if (array_key_exists($targetType, $this->entitiesInline)) {
-        if (!$entity->get($field_name)->isEmpty()) {
-          foreach ($entity->get($field_name) as $item) {
-            $entityInline = $item->entity;
-            $this->exportEntity($entityInline);
+      if (array_key_exists($targetType, $this->entitiesInline) && !$entity->get($field_name)->isEmpty()) {
+        foreach ($entity->get($field_name) as $item) {
+          $referenced_entity = $item->entity ?? NULL;
+          if ($referenced_entity instanceof ContentEntityInterface) {
+            $this->exportEntity($referenced_entity, $processed);
           }
         }
       }

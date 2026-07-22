@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\headless_entity_serializer\Services\Storage;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -52,6 +54,13 @@ class FileStorageManager {
   protected $aliasBucketManager;
 
   /**
+   * Cached base directory path.
+   *
+   * @var string|false|null
+   */
+  private $baseDirectory;
+
+  /**
    * Constructs a new FileStorageManager object.
    *
    * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -102,11 +111,10 @@ class FileStorageManager {
       return $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
     }
     catch (\Throwable $e) {
-      $this->logger->error('No se pudo crear el directorio base de serialización "{directory}": @message', [
+      $this->logger->error('Could not create base serialization directory "{directory}": @message', [
         'directory' => $directory,
         '@message' => $e->getMessage(),
       ]);
-      // Re-throw the specific exception.
       throw $e;
     }
   }
@@ -135,14 +143,16 @@ class FileStorageManager {
    */
   public function saveData($json_data, $entity_id, $entity_type_id, $language_id, $directory_add = NULL) {
     $directory = $this->getEntityDirectory($entity_type_id, $entity_id);
+    if ($directory === FALSE) {
+      return FALSE;
+    }
     if ($directory_add !== NULL) {
-      $directory = $directory . $directory_add;
+      $directory .= $directory_add;
     }
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
 
     $path = $directory . $language_id . ".json";
 
-    // Generate and save the alias before saving the entity data.
     $baseDirectory = $this->getBaseDirectory();
     $this->aliasBucketManager->generateAlias($json_data, $entity_type_id, $entity_id, $baseDirectory);
 
@@ -180,6 +190,28 @@ class FileStorageManager {
   }
 
   /**
+   * Gets the full file path for a specific entity translation JSON.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID.
+   * @param string $entity_id
+   *   The entity ID.
+   * @param string $language_id
+   *   The language code.
+   *
+   * @return string|false
+   *   The full filesystem URI (e.g. 'public://exported/node/4/4523/en.json'),
+   *   or FALSE if the base directory is not configured.
+   */
+  public function getEntityFilePath(string $entity_type_id, string $entity_id, string $language_id): string|false {
+    $directory = $this->getEntityDirectory($entity_type_id, $entity_id);
+    if ($directory === FALSE) {
+      return FALSE;
+    }
+    return $directory . $language_id . '.json';
+  }
+
+  /**
    * Gets information about currently serialized files for a given entity type.
    *
    * This method scans the file system for JSON files belonging to a specific
@@ -198,29 +230,31 @@ class FileStorageManager {
    */
   public function getEntitiesInFiles($entity_type_id) {
     $directory = $this->getBaseDirectory() . "/" . $entity_type_id;
-    $resultado = [];
+    $results = [];
 
     try {
       $files = $this->fileSystem->scanDirectory($directory, '/.*/');
       foreach ($files as $uri => $file_info) {
-        if (preg_match('#' . $entity_type_id . '/\d+/(\d+)/(\w+)\.json$#', $uri, $coincidencias)) {
-          $id = $coincidencias[1];
-          $idioma = $coincidencias[2];
-          if (!isset($resultado[$id])) {
-            $resultado[$id] = [];
+        if (preg_match('#' . $entity_type_id . '/\d+/(\d+)/(\w+)\.json$#', (string) $uri, $matches)) {
+          $id = $matches[1];
+          $language = $matches[2];
+          if (!isset($results[$id])) {
+            $results[$id] = [];
           }
-          if (!in_array($idioma, $resultado[$id])) {
-            $resultado[$id][] = $idioma;
+          if (!in_array($language, $results[$id])) {
+            $results[$id][] = $language;
           }
         }
       }
     }
     catch (\Throwable $th) {
-      // The current implementation swallows the exception. It's recommended
-      // to log it here instead, e.g., \Drupal::logger('my_module')->error($th->getMessage());
+      $this->logger->error('Error scanning serialized files for {type}: @message', [
+        'type' => $entity_type_id,
+        '@message' => $th->getMessage(),
+      ]);
     }
 
-    return $resultado;
+    return $results;
   }
 
   /**
@@ -237,11 +271,22 @@ class FileStorageManager {
       if (!$base_directory) {
         return FALSE;
       }
+
+      $scheme = parse_url($base_directory, PHP_URL_SCHEME);
+      if (!$scheme || !in_array($scheme, ['public', 'private', 'temporary'], TRUE)) {
+        $this->logger->error('Refusing to delete outside trusted stream wrapper: {dir}', [
+          'dir' => $base_directory,
+        ]);
+        return FALSE;
+      }
+
       $this->fileSystem->deleteRecursive($base_directory . "/");
       return TRUE;
     }
     catch (\Throwable $th) {
-      // It's recommended to log the exception.
+      $this->logger->error('Error deleting all serialized files: @message', [
+        '@message' => $th->getMessage(),
+      ]);
       return FALSE;
     }
   }
@@ -249,18 +294,25 @@ class FileStorageManager {
   /**
    * Retrieves the base destination directory from configuration.
    *
+   * The result is cached in memory for the lifetime of the service.
+   *
    * @return string|false
    *   The base directory path (e.g., 'public://exported_data') or FALSE if
    *   not configured.
    */
   private function getBaseDirectory() {
+    if ($this->baseDirectory !== NULL) {
+      return $this->baseDirectory;
+    }
     $config = $this->configFactory->get('headless_entity_serializer.settings');
     $base_directory = $config->get('destination_directory');
 
     if (empty($base_directory)) {
-      $this->logger->error('El directorio de destino no está configurado, no se pueden borrar todos los archivos serializados.');
+      $this->logger->error('Destination directory is not configured, cannot delete serialized files.');
+      $this->baseDirectory = FALSE;
       return FALSE;
     }
+    $this->baseDirectory = $base_directory;
     return $base_directory;
   }
 
@@ -286,7 +338,6 @@ class FileStorageManager {
     }
     $target_directory = $this->getEntityDirectory($entity_type_id, $entity_id);
 
-    // Remove any path aliases associated with this entity's files.
     $this->aliasBucketManager->removeAliasEntities($target_directory, $base_directory);
 
     try {
@@ -294,7 +345,11 @@ class FileStorageManager {
       return TRUE;
     }
     catch (\Throwable $th) {
-      // It's recommended to log the exception.
+      $this->logger->error('Error deleting directory for entity {type}/{id}: @message', [
+        'type' => $entity_type_id,
+        'id' => $entity_id,
+        '@message' => $th->getMessage(),
+      ]);
       return FALSE;
     }
   }
@@ -321,7 +376,6 @@ class FileStorageManager {
     $target_directory = $this->getEntityDirectory($entity_type_id, $entity_id);
 
     $filepath = $target_directory . $language_id . '.json';
-    // Remove the associated path alias before deleting the file.
     $this->aliasBucketManager->removeAliasEntity($filepath, $base_directory);
 
     try {
@@ -329,7 +383,12 @@ class FileStorageManager {
       return TRUE;
     }
     catch (\Throwable $th) {
-      // It's recommended to log the exception.
+      $this->logger->error('Error deleting file {type}/{id}/{lang}: @message', [
+        'type' => $entity_type_id,
+        'id' => $entity_id,
+        'lang' => $language_id,
+        '@message' => $th->getMessage(),
+      ]);
       return FALSE;
     }
   }

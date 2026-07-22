@@ -1,0 +1,4 @@
+access entity json:
+  title: 'Access Entity JSON files'
+  description: 'Allow users to access entity JSON files via HTTP routes.'
+  restrict access: false

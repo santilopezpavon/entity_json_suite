@@ -3,6 +3,7 @@ services:
     class: Drupal\headless_entity_serializer\Services\Alias\AliasBucketManager
     arguments:
       - '@file_system'
+      - '@logger.factory'
   headless_entity_serializer.entity_serializer:
     class: Drupal\headless_entity_serializer\Services\Serialize\EntitySerializer
     arguments:
@@ -26,3 +27,4 @@ services:
       - '@state'
       - '@logger.factory'
       - '@entity_type.manager'
+      - '@language_manager'

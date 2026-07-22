@@ -1,0 +1,8 @@
+name: 'Entity JSON Serving'
+type: module
+description: 'Serve serialized entity JSON files over HTTP with alias resolution and caching.'
+core_version_requirement: ^9 || ^10 || ^11
+package: 'API'
+dependencies:
+  - drupal:path_alias
+  - headless_entity_serializer:headless_entity_serializer

@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\headless_entity_serializer\Form;
 
 use Drupal\Core\Entity\ContentEntityType;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Logger\LoggerChannel;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -40,9 +43,16 @@ class SettingsForm extends ConfigFormBase {
   /**
    * The logger channel for this module.
    *
-   * @var \Drupal\Core\Logger\LoggerChannel
+   * @var \Psr\Log\LoggerInterface
    */
   protected $logger;
+
+  /**
+   * The file system service.
+   *
+   * @var \Drupal\Core\File\FileSystemInterface
+   */
+  protected $fileSystem;
 
   /**
    * Constructs a new SettingsForm object.
@@ -53,19 +63,23 @@ class SettingsForm extends ConfigFormBase {
    *   The messenger service.
    * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
    *   The entity field manager.
-   * @param \Drupal\Core\Logger\LoggerChannel $logger
-   *   The logger factory channel.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
+   *   The logger factory.
+   * @param \Drupal\Core\File\FileSystemInterface $file_system
+   *   The file system service.
    */
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
     MessengerInterface $messenger,
     EntityFieldManagerInterface $entity_field_manager,
-    LoggerChannel $logger,
+    LoggerChannelFactoryInterface $logger_factory,
+    FileSystemInterface $file_system,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
     $this->entityFieldManager = $entity_field_manager;
-    $this->logger = $logger;
+    $this->logger = $logger_factory->get('headless_entity_serializer');
+    $this->fileSystem = $file_system;
   }
 
   /**
@@ -76,7 +90,8 @@ class SettingsForm extends ConfigFormBase {
       $container->get('entity_type.manager'),
       $container->get('messenger'),
       $container->get('entity_field.manager'),
-      $container->get('logger.factory')->get('headless_entity_serializer')
+      $container->get('logger.factory'),
+      $container->get('file_system'),
     );
   }
 
@@ -132,13 +147,22 @@ class SettingsForm extends ConfigFormBase {
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     $directory = $form_state->getValue('destination_directory');
+
+    // Validate directory existence and writability without side effects.
     if (!is_dir($directory)) {
-      if (!@mkdir($directory, 0775, TRUE)) {
-        $form_state->setErrorByName('destination_directory', $this->t('El directorio de destino no existe y no pudo ser creado: @directory. Asegúrate de que la ruta sea válida y los permisos sean correctos.', ['@directory' => $directory]));
+      $parent = dirname((string) $directory);
+      if (!is_dir($parent) || !is_writable($parent)) {
+        $form_state->setErrorByName('destination_directory', $this->t(
+          'The destination directory does not exist and its parent is not writable: @directory.',
+          ['@directory' => $directory]
+        ));
       }
     }
     elseif (!is_writable($directory)) {
-      $form_state->setErrorByName('destination_directory', $this->t('El directorio de destino no es escribible: @directory. Por favor, verifica los permisos.', ['@directory' => $directory]));
+      $form_state->setErrorByName('destination_directory', $this->t(
+        'The destination directory is not writable: @directory. Please check permissions.',
+        ['@directory' => $directory]
+      ));
     }
     parent::validateForm($form, $form_state);
   }
@@ -147,10 +171,28 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    // Ensure destination directory exists before saving.
+    $directory = $form_state->getValue('destination_directory');
+    if (!is_dir($directory)) {
+      try {
+        $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
+      }
+      catch (\Throwable $e) {
+        $this->logger->error('Failed to create destination directory: @message', [
+          '@message' => $e->getMessage(),
+        ]);
+        $this->messenger->addError($this->t(
+          'Could not create the destination directory: @directory.',
+          ['@directory' => $directory]
+        ));
+        return;
+      }
+    }
+
     $this->config('headless_entity_serializer.settings')
       ->set('entity_types', array_filter($form_state->getValue('entity_types')))
       ->set('entity_types_inline', array_filter($form_state->getValue('entity_types_inline')))
-      ->set('destination_directory', $form_state->getValue('destination_directory'))
+      ->set('destination_directory', $directory)
       ->save();
 
     $this->messenger->addStatus($this->t('The entity serialization configuration has been saved.'));

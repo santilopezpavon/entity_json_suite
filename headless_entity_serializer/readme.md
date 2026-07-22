@@ -1,79 +1,115 @@
-# Headless Entity Serializer Module
+# Headless Entity Serializer
 
-This Drupal module is designed to automatically serialize content entities into static JSON files on your server's file system. This facilitates their consumption by a headless application or a Static Site Generator (SSG). It offers functionalities for both full regeneration and incremental updates of these files.
+Drupal module that serializes content entities into static JSON files on disk, for consumption by headless applications or Static Site Generators (SSG).
 
-## Key Features
+## Features
 
-* JSON Serialization: Converts Drupal content entities (such as Nodes, Users, Taxonomy Terms, etc.) into JSON files.
-* Disk Storage: Saves the JSON files to a configurable directory on your file system, following a logical structure by entity type, ID, and language code.
-* Full Regeneration: Allows you to delete all previously generated JSON files for selected entity types and regenerate them from scratch. Ideal for initial deployment or a complete resynchronization.
-* Incremental Update: Processes only entities that have been created, updated, or deleted since the last run, ensuring efficient and fast synchronization.
-* Multilingual Support: Generates separate JSON files for each translation of an entity, if the site has languages configured.
+- **JSON Serialization**: Converts Drupal content entities (Nodes, Users, Taxonomy Terms, etc.) into JSON files.
+- **Structured Storage**: Saves files to a configurable directory with a bucket-based structure organized by entity type, ID, and language code.
+- **Full Regeneration**: Deletes all previously generated files and rebuilds them from scratch.
+- **Incremental Update**: Processes only entities created, updated, or deleted since the last run.
+- **Multilingual Support**: Generates separate JSON files for each translation of an entity.
+- **Path Aliases**: Automatically exports path aliases into a bucket-based directory structure.
+
+## Installation
+
+```bash
+ddev exec composer require drupal/headless_entity_serializer
+ddev exec drush en headless_entity_serializer
+```
 
 ## Configuration
 
-* Configure the destination directory: Navigate to /admin/config/headless-entity-serializer in your Drupal site.
-* Define the Destination Directory where the JSON files will be saved (e.g., public://exported_entities). Ensure Drupal has write permissions to this directory.
-* Select the Entity Types you wish to serialize.
+Navigate to **Admin > Configuration > Entity Serialization Settings** (`/admin/config/headless-entity-serializer`):
 
-## Usage
+1. **Destination Directory**: Path where JSON files will be saved (e.g., `public://exported_entities`). Drupal must have write permissions to this directory.
+2. **Entity Types**: Select which entity types to serialize.
 
-Once configured, you can use the Drush commands to manage the generation of your JSON files.
+## Drush Commands
+
+All commands are run from the project root inside the ddev container.
 
 ### Full Regeneration
-This command deletes all existing JSON files for the configured entity types and regenerates them completely.
+
+Deletes all existing JSON files and regenerates them from scratch.
 
 ```bash
-drush hes-full
-```
-When to use it:
+# All configured entity types
+ddev exec drush hes-full
 
-* The first time you set up the module.
-* After major structural changes to your content or configuration that affect most entities.
-* When you need to ensure all files are in a clean, freshly updated state.
+# A specific entity type
+ddev exec drush hes-full node
+```
+
+Use when: first setup, after major content structure changes, or when you need a clean state.
 
 ### Incremental Update
-This command only processes entities that have been modified, created, or deleted since the last incremental run. It is the recommended way to keep your files updated in a production environment.
+
+Processes only entities modified since the last run. Recommended for production environments.
 
 ```bash
-drush hes-incremental
+ddev exec drush hes-incremental
 ```
-When to use it:
 
-* Regularly, for example, configured as a cron job.
-* For continuous synchronization of your content.
+Use when: regular synchronization, e.g., as a cron job.
+
+### Reset State
+
+Forces the next incremental run to process all entities.
+
+```bash
+ddev exec drush hes-reset-state
+```
 
 ## Generated File Structure
 
-JSON files will be saved in the configured destination directory, following a structure like this:
+Files are saved under the configured destination directory:
 
-
+```
 [destination_directory]/
-├── [entity_type_id]/
-│   └── [entity_id]/
-│       └── [langcode].json
-├── alias/alias/
-│   └── [langcode].json  (e.g., alias/en.json, alias/es.json)
+├── [entity_type]/
+│   ├── [bucket]/               # bucket = floor(entity_id / 1000)
+│   │   └── [entity_id]/
+│   │       ├── [langcode].json
+│   │       └── ...
+│   └── ...
+└── alias-buckets/
+    └── [langcode]/
+        └── [bucket]/
+            └── [alias_path]/
+                ├── data.json
+                └── [entity_type]-[entity_id].json
+```
 
-The content of alias/alias/[langcode].json would be an associative array similar to:
-```javascript
+### Entity JSON Example
+
+```json
 {
-  "/about/us": {
-    "source": "/node/1",
-    "langcode": "en",
-    "status": 1,
-    "type": "entity",
-    "bundle": "page"
-  },
-  "/contact": {
-    "source": "/node/2",
-    "langcode": "en",
-    "status": 1,
-    "type": "entity",
-    "bundle": "page"
-  }
+  "id": "1",
+  "type": "node",
+  "bundle": "article",
+  "langcode": "en",
+  "title": "Hello World",
+  "created": "2025-01-15T10:30:00+00:00",
+  "changed": "2025-06-20T14:00:00+00:00"
 }
 ```
 
+### Alias JSON Example
 
+```json
+{
+  "entityType": "node",
+  "entityId": "1"
+}
+```
 
+## Permissions
+
+| Permission | Description |
+|------------|-------------|
+| Administer headless entity serializer | Access the configuration form and manage serialization settings. |
+
+## Development
+
+See [../AGENTS.md](../AGENTS.md) for code quality tools and architecture details.

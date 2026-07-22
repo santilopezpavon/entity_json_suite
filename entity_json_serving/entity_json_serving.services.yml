@@ -1,0 +1,11 @@
+services:
+  entity_json_serving.alias_resolver:
+    class: Drupal\entity_json_serving\Resolver\AliasResolver
+    arguments:
+      - '@path_alias.manager'
+      - '@logger.factory'
+
+  entity_json_serving.path_processor:
+    class: Drupal\entity_json_serving\PathProcessor\AliasPathProcessor
+    tags:
+      - { name: path_processor_inbound }

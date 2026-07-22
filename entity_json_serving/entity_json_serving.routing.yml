@@ -1,0 +1,11 @@
+entity_json_serving.serve_entity:
+  path: '/json/path/{alias}'
+  defaults:
+    _controller: '\Drupal\entity_json_serving\Controller\EntityJsonController::serveByAlias'
+  requirements:
+    alias: '.+'
+    _permission: 'access entity json'
+  options:
+    parameters:
+      alias:
+        type: string

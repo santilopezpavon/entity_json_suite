@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\headless_entity_serializer\Services\Alias;
 
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 
 /**
  * Service to manage alias buckets for headless consumption.
@@ -21,13 +24,54 @@ class AliasBucketManager {
   protected $fileSystem;
 
   /**
+   * The logger channel.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected $logger;
+
+  /**
    * Constructs a new AliasBucketManager object.
    *
    * @param \Drupal\Core\File\FileSystemInterface $file_system
    *   The file system service.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
+   *   The logger factory.
    */
-  public function __construct(FileSystemInterface $file_system) {
+  public function __construct(
+    FileSystemInterface $file_system,
+    LoggerChannelFactoryInterface $logger_factory,
+  ) {
     $this->fileSystem = $file_system;
+    $this->logger = $logger_factory->get('headless_entity_serializer');
+  }
+
+  /**
+   * Sanitizes an alias path for safe filesystem use.
+   *
+   * Strips path traversal sequences while preserving forward slashes
+   * that represent the alias hierarchy.
+   *
+   * @param string $alias
+   *   The raw alias path (e.g., '/about/us').
+   *
+   * @return string
+   *   The sanitized alias path.
+   */
+  private function sanitizeAliasPath(string $alias): string {
+    $alias = str_replace('\\', '/', $alias);
+    $parts = explode('/', $alias);
+    $safe = [];
+    foreach ($parts as $part) {
+      if (in_array($part, ['', '.', '..'], TRUE)) {
+        continue;
+      }
+      $part = preg_replace('/[^a-zA-Z0-9\-_]/', '', $part);
+      if ($part !== '') {
+        $safe[] = $part;
+      }
+    }
+    return '/' . implode('/', $safe);
   }
 
   /**
@@ -52,22 +96,25 @@ class AliasBucketManager {
 
     if (isset($data->path[0]->pid)) {
       $bucket = floor($data->path[0]->pid / 1000);
+      $safeLangcode = preg_replace('/[^a-z0-9\-_]/', '', $data->path[0]->langcode);
+      $safeAlias = $this->sanitizeAliasPath($data->path[0]->alias);
 
-      $directoryAlias = $base_directory . "/alias-buckets/" . $data->path[0]->langcode . "/" . $bucket;
+      $directoryAlias = $base_directory . "/alias-buckets/" . $safeLangcode . "/" . $bucket;
 
-      // CLEAN INIT.
-      $filenameToSearch = $entity_type . '-' . $entity_id . '.json';
-      $mask = '/' . preg_quote($filenameToSearch, '/') . '/';
-      $files = $this->fileSystem->scanDirectory($directoryAlias, $mask, [
-        'recurse' => TRUE,
-      ]);
-      foreach ($files as $key => $file) {
-        $directoryParent = dirname($key);
-        $this->fileSystem->deleteRecursive($directoryParent);
+      // Clean old alias files for this entity only if bucket dir exists.
+      if (is_dir($directoryAlias)) {
+        $filenameToSearch = $entity_type . '-' . $entity_id . '.json';
+        $mask = '/' . preg_quote($filenameToSearch, '/') . '/';
+        $files = $this->fileSystem->scanDirectory($directoryAlias, $mask, [
+          'recurse' => TRUE,
+        ]);
+        foreach ($files as $key => $file) {
+          $directoryParent = dirname((string) $key);
+          $this->fileSystem->deleteRecursive($directoryParent);
+        }
       }
 
-      // CLEAN END.
-      $directoryAlias .= $data->path[0]->alias;
+      $directoryAlias .= $safeAlias;
       $this->fileSystem->prepareDirectory($directoryAlias, FileSystemInterface::CREATE_DIRECTORY);
       $dataAlias = [
         "entityType" => $entity_type,
@@ -86,31 +133,41 @@ class AliasBucketManager {
   /**
    * Removes a single alias bucket directory.
    *
-   * This method reads a 'data.json' file, extracts the alias information,
+   * This method reads the entity's JSON file, extracts the alias information,
    * and then recursively deletes the corresponding alias directory and
    * all its contents.
    *
    * @param string $file_path
-   *   The URI of the 'data.json' file to read (e.g., 'public://.../alias/data.json').
+   *   The URI of the data file to read.
    * @param string $base_directory
    *   The base directory URI for the alias buckets (e.g., 'public://').
    */
   public function removeAliasEntity($file_path, $base_directory) {
     try {
-      $filepathAbsolute = $this->fileSystem->realpath($file_path);
-      $json_content = file_get_contents($filepathAbsolute);
+      $json_content = file_get_contents($file_path);
+      if ($json_content === FALSE) {
+        $this->logger->warning('Could not read file for alias removal: {path}', [
+          'path' => $file_path,
+        ]);
+        return;
+      }
 
       $data = json_decode($json_content);
       if (isset($data->path[0]->pid)) {
         $bucket = floor($data->path[0]->pid / 1000);
-        $directoryAlias = $base_directory . "/alias-buckets/" . $data->path[0]->langcode . "/" . $bucket;
-        $directoryAlias .= $data->path[0]->alias;
+        $safeLangcode = preg_replace('/[^a-z0-9\-_]/', '', $data->path[0]->langcode);
+        $safeAlias = $this->sanitizeAliasPath($data->path[0]->alias);
+        $directoryAlias = $base_directory
+          . "/alias-buckets/" . $safeLangcode . "/" . $bucket
+          . $safeAlias;
         $this->fileSystem->deleteRecursive($directoryAlias);
       }
     }
     catch (\Throwable $th) {
-      // It's generally better to log the exception rather than just catching it.
-      // E.g., \Drupal::logger('my_module')->error($th->getMessage());
+      $this->logger->error('Error removing alias for {path}: @message', [
+        'path' => $file_path,
+        '@message' => $th->getMessage(),
+      ]);
     }
 
   }
@@ -122,7 +179,7 @@ class AliasBucketManager {
    * calls `removeAliasEntity()` to delete the associated alias directory.
    *
    * @param string $target_directory
-   *   The URI of the directory to scan for alias files (e.g., 'public://.../node/123/').
+   *   The URI of the directory to scan for alias files.
    * @param string $base_directory
    *   The base directory URI for the alias buckets (e.g., 'public://').
    */

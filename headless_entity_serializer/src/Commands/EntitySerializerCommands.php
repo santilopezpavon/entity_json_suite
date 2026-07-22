@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\headless_entity_serializer\Commands;
 
 use Drupal\headless_entity_serializer\Services\Generator\GeneratorService;
@@ -13,19 +15,18 @@ class EntitySerializerCommands extends DrushCommands {
   /**
    * The generator service for serializing entities.
    *
-   * @var \Drupal\headless_entity_serializer\Service\Generator\GeneratorService
+   * @var \Drupal\headless_entity_serializer\Services\Generator\GeneratorService
    */
   protected $generator;
 
   /**
    * Constructs a new EntitySerializerCommands object.
    *
-   * This is the recommended way to inject services into Drush commands.
-   *
-   * @param \Drupal\headless_entity_serializer\Service\Generator\GeneratorService $generator
+   * @param \Drupal\headless_entity_serializer\Services\Generator\GeneratorService $generator
    *   The generator service.
    */
   public function __construct(GeneratorService $generator) {
+    parent::__construct();
     $this->generator = $generator;
   }
 
@@ -38,7 +39,7 @@ class EntitySerializerCommands extends DrushCommands {
    * @command headless-entity-serializer:full-regenerate
    * @aliases hes-full
    * @usage hes-full
-   * Fully regenerates JSON files for all configured entity types.
+   *   Fully regenerates JSON files for all configured entity types.
    */
   public function fullRegenerate($entity_type_id = NULL) {
     $this->io()->section('Executing full regeneration of serialized entities and aliases');
@@ -51,16 +52,20 @@ class EntitySerializerCommands extends DrushCommands {
   }
 
   /**
+   * Resets the incremental update state.
+   *
+   * This command forces the next incremental run to process all entities.
    *
    * @command headless-entity-serializer:reset-state
    * @aliases hes-reset-state
    * @usage hes-reset-state
-   * Fully regenerates JSON files for all configured entity types.
+   *   Resets the state so the next incremental run processes all entities.
    */
-  public function resetState($entity_type_id = NULL) {
-    $this->io()->section('Init to reset the state');
-    $this->generator->resetState();    
+  public function resetState() {
+    $this->io()->section('Resetting incremental state');
+    $this->generator->resetState();
   }
+
   /**
    * Performs an incremental update of serialized entity JSON files.
    *
@@ -70,31 +75,11 @@ class EntitySerializerCommands extends DrushCommands {
    * @command headless-entity-serializer:incremental-update
    * @aliases hes-incremental
    * @usage hes-incremental
-   * Performs an incremental update for configured entity types.
+   *   Performs an incremental update for configured entity types.
    */
   public function incrementalUpdate() {
     $this->io()->section('Executing incremental update of serialized entities and aliases');
     $this->generator->incrementalGenerate();
-  }
-
-
-
-  /**
-   *
-   * @command headless-entity-serializer:test
-   * @aliases hes-test
-   * @usage hes-test
-   */
-  public function test() {
-    $this->io()->section('Init to reset the state');
-    /*$nids = \Drupal::entityQuery('node')->execute(); 
-
-    foreach ($nids as $nid) {
-      $node = \Drupal\node\Entity\Node::load($nid);
-      if ($node) {
-        $node->delete();
-      }
-    }*/
   }
 
 }

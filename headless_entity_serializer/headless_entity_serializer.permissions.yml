@@ -1,4 +1,4 @@
 administer headless entity serializer:
-  title: 'Administrar la serialización de entidades headless'
-  description: 'Permite configurar los tipos de entidad a serializar y el directorio de destino.'
+  title: 'Administer headless entity serialization'
+  description: 'Configure which entity types to serialize and the destination directory.'
   restrict access: true
