@@ -101,7 +101,7 @@ class GeneratorService {
    */
   public function fullGenerateEntityType($entity_type_id) {
     $storage = \Drupal::entityTypeManager()->getStorage($entity_type_id);
-    $entityIds = $storage->getQuery()->execute();
+    $entityIds = $storage->getQuery()->accessCheck(FALSE)->execute();
     foreach ($entityIds as $entityId) {
       $entity = $storage->load($entityId);
       $this->entitySerializer->exportEntity($entity);
@@ -166,7 +166,7 @@ class GeneratorService {
 
       $storage = $this->entityTypeManager->getStorage($entityType);
 
-      $query = $storage->getQuery()->latestRevision();
+      $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE);
       $changed_entity_ids = $query
         ->condition("changed", $last_run_timestamp, '>')
         ->execute();
@@ -230,7 +230,7 @@ class GeneratorService {
 
     // Remove entity.
     // Siempre consulta la última revisión.
-    $query = $storage->getQuery()->latestRevision();
+    $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE);
     $current_db_ids = $query->execute();
     $serialized_files_info = $this->fileStorageManager->getEntitiesInFiles($entity_type_id);
     $serialized_entity_ids = array_keys($serialized_files_info);
@@ -261,7 +261,7 @@ class GeneratorService {
     foreach ($languages as $language_id => $value) {
 
       if (array_key_exists($language_id, $grouped)) {
-        $query = $storage->getQuery()->latestRevision()
+        $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE)
             // Filtrar por idioma.
           ->condition('langcode', $language_id);
         $current_db_ids = $query->execute();
