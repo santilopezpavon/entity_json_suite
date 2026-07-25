@@ -1,0 +1,34 @@
+<?php
+
+/**
+ * @file
+ * Contains hook implementations for the Headless Entity Serializer module.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Entity\EntityInterface;
+
+/**
+ * Implements hook_entity_insert().
+ */
+function headless_entity_serializer_entity_insert(EntityInterface $entity): void {
+  \Drupal::service('headless_entity_serializer.entity_tracking')
+    ->trackChange($entity, 'insert');
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function headless_entity_serializer_entity_update(EntityInterface $entity): void {
+  \Drupal::service('headless_entity_serializer.entity_tracking')
+    ->trackChange($entity, 'update');
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function headless_entity_serializer_entity_delete(EntityInterface $entity): void {
+  \Drupal::service('headless_entity_serializer.entity_tracking')
+    ->trackChange($entity, 'delete');
+}
