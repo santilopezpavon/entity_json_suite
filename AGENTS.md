@@ -66,7 +66,48 @@ ddev exec drush hes-reset-state
 ddev exec drush hev-export
 ```
 
+## Node.js server (`node-server/`)
+
+Sirve los archivos JSON estáticos generados por Drupal sin necesidad de bootstrappear Drupal. Mucho más rápido que `entity_json_serving`.
+
+```bash
+cd node-server
+npm install
+cp .env.example .env   # Configurar rutas
+npm start
+npm test              # 71 tests con vitest
+```
+
+Rutas:
+
+| URL | Resolución |
+|-----|-----------|
+| `GET /json/:type/:id/:lang` | Estático: `<EXPORT_DIR>/<type>/<bucket>/<id>/<lang>.json` |
+| `GET /json/views/:view/:display` | Estático: `<VIEWS_DIR>/<view>/<display>.json` |
+| `GET /json/path/:lang/{alias}` | Busca en `<ALIAS_DIR>/{lang}/<bucket>/{alias}/data.json` (idioma obligatorio) |
+
+`{lang}` debe coincidir con `^[a-z]{2,3}(-[A-Z]{2})?$` (en, es, en-GB, etc.). Sin prefijo de idioma → 400 Bad Request. Sin fallback entre idiomas.
+
+Code quality:
+
+```bash
+npm run lint         # ESLint
+npm test             # vitest
+```
+
 ## Tests
+
+```bash
+# PHP unit tests (rápidos, sin base de datos)
+ddev exec composer test
+ddev exec composer test:unit
+
+# Node.js server tests
+cd node-server && npm test
+
+# Kernel tests (requieren base de datos + drupal/core-dev)
+ddev exec composer test:kernel
+```
 
 ```bash
 # Unit tests (rápidos, sin base de datos)
