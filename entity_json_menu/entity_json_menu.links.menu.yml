@@ -1,0 +1,5 @@
+entity_json_menu.settings:
+  title: 'Entity JSON Menu'
+  description: 'Configure export of Menus as static JSON files.'
+  route_name: entity_json_menu.settings
+  parent: entity_json_suite

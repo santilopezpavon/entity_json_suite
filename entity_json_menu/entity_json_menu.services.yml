@@ -1,0 +1,9 @@
+services:
+  entity_json_menu.exporter:
+    class: Drupal\entity_json_menu\Services\MenuExporter
+    arguments:
+      - '@menu.link_tree'
+      - '@entity_type.manager'
+      - '@config.factory'
+      - '@file_system'
+      - '@logger.factory'
