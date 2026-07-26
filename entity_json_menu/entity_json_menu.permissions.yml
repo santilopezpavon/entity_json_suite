@@ -1,0 +1,4 @@
+access entity json menus:
+  title: 'Access Entity JSON Menus'
+  description: 'Access exported Menu JSON files via the /json/menus/* routes.'
+  restrict access: false

@@ -1,0 +1,14 @@
+entity_json_menu.serve:
+  path: '/json/menus/{menu_id}'
+  defaults:
+    _controller: '\Drupal\entity_json_menu\Controller\MenuExportController::serveMenu'
+  requirements:
+    _permission: 'access entity json menus'
+
+entity_json_menu.settings:
+  path: '/admin/config/entity-json-menu'
+  defaults:
+    _form: '\Drupal\entity_json_menu\Form\MenuExportSettingsForm'
+    _title: 'Entity JSON Menu settings'
+  requirements:
+    _permission: 'administer site configuration'

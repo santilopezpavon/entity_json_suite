@@ -1,0 +1,8 @@
+name: 'Entity JSON Menu'
+type: module
+description: 'Exports Drupal menus as static JSON files with recursive tree structure.'
+core_version_requirement: ^9 || ^10 || ^11
+package: 'API'
+dependencies:
+  - drupal:system
+  - drupal:menu_link_content

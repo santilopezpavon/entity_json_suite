@@ -1,0 +1,7 @@
+services:
+  entity_json_menu.drush_commands:
+    class: Drupal\entity_json_menu\Commands\MenuExportCommands
+    tags:
+      - { name: drush.command }
+    arguments:
+      - '@entity_json_menu.exporter'

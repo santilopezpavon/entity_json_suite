@@ -1,0 +1,4 @@
+entity_json_menu.settings:
+  title: 'Menus'
+  route_name: entity_json_menu.settings
+  base_route: headless_entity_serializer.settings_form
