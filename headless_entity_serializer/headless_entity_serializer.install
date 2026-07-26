@@ -1,0 +1,72 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Headless Entity Serializer.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_schema().
+ */
+function headless_entity_serializer_schema(): array {
+  $schema['hes_entity_tracking'] = [
+    'description' => 'Tracks entity changes for incremental JSON generation.',
+    'fields' => [
+      'entity_type_id' => [
+        'description' => 'The entity type ID (e.g. node, taxonomy_term).',
+        'type' => 'varchar_ascii',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'entity_id' => [
+        'description' => 'The entity ID.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ],
+      'changed' => [
+        'description' => 'Timestamp of the last change to this entity.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'operation' => [
+        'description' => 'Last operation: insert, update, or delete.',
+        'type' => 'varchar_ascii',
+        'length' => 16,
+        'not null' => TRUE,
+        'default' => 'update',
+      ],
+      'revision_id' => [
+        'description' => 'The revision ID at the time of tracking.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['entity_type_id', 'entity_id'],
+    'indexes' => [
+      'changed' => ['changed'],
+      'operation' => ['operation'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Adds the hes_entity_tracking table for incremental JSON generation.
+ */
+function headless_entity_serializer_update_10001(): string {
+  if (!\Drupal::database()->schema()->tableExists('hes_entity_tracking')) {
+    $schema = headless_entity_serializer_schema();
+    db_create_table('hes_entity_tracking', $schema['hes_entity_tracking']);
+  }
+
+  return 'Entity tracking table created.';
+}

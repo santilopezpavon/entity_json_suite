@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\headless_entity_serializer\Form;
 
 use Drupal\Core\Entity\ContentEntityType;
-use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\ConfigFormBase;
@@ -34,13 +33,6 @@ class SettingsForm extends ConfigFormBase {
   protected $messenger;
 
   /**
-   * The entity field manager.
-   *
-   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
-   */
-  protected $entityFieldManager;
-
-  /**
    * The logger channel for this module.
    *
    * @var \Psr\Log\LoggerInterface
@@ -61,8 +53,6 @@ class SettingsForm extends ConfigFormBase {
    *   The entity type manager.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger service.
-   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entity_field_manager
-   *   The entity field manager.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory.
    * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -71,13 +61,11 @@ class SettingsForm extends ConfigFormBase {
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
     MessengerInterface $messenger,
-    EntityFieldManagerInterface $entity_field_manager,
     LoggerChannelFactoryInterface $logger_factory,
     FileSystemInterface $file_system,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->messenger = $messenger;
-    $this->entityFieldManager = $entity_field_manager;
     $this->logger = $logger_factory->get('headless_entity_serializer');
     $this->fileSystem = $file_system;
   }
@@ -89,7 +77,6 @@ class SettingsForm extends ConfigFormBase {
     return new static(
       $container->get('entity_type.manager'),
       $container->get('messenger'),
-      $container->get('entity_field.manager'),
       $container->get('logger.factory'),
       $container->get('file_system'),
     );
@@ -119,16 +106,16 @@ class SettingsForm extends ConfigFormBase {
     $form['entity_types'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Entity Types to Serialize'),
-      '#description' => $this->t('Select the entity types you want to serialize to JSON files.'),
-      '#options' => $content_types["options"],
+      '#description' => $this->t('Entity types exported directly to JSON files. These are processed independently by the generator and updated during incremental runs even when only the entity itself changes. Use for main content types consumed by the frontend (e.g. node, taxonomy_term, custom ECK types).'),
+      '#options' => $content_types,
       '#default_value' => $config->get('entity_types') ?: [],
     ];
 
     $form['entity_types_inline'] = [
       '#type' => 'checkboxes',
-      '#title' => $this->t('Entity Types to Serialize in inline entity form'),
-      '#description' => $this->t('Select the entity types you want to serialize to JSON files.'),
-      '#options' => $content_types["optionsNotChange"],
+      '#title' => $this->t('Entity Types to Serialize Inline'),
+      '#description' => $this->t('Entity types exported to their own JSON files, but discovered through entity reference fields of their parent. They are only re-exported when the referencing entity is processed. If an inline entity changes without its parent, the JSON file will NOT be updated during incremental runs. Use for dependent entities like paragraphs or block_content.'),
+      '#options' => $content_types,
       '#default_value' => $config->get('entity_types_inline') ?: [],
     ];
 
@@ -200,7 +187,7 @@ class SettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Gets all available entity types for the form options.
+   * Gets all available content entity types for the form options.
    *
    * @return array
    *   An array of entity type labels keyed by entity type ID.
@@ -208,21 +195,16 @@ class SettingsForm extends ConfigFormBase {
   private function getAllContentTypesOptions() {
     $definitions = $this->entityTypeManager->getDefinitions();
     $options = [];
-    $optionsNotChange = [];
     foreach ($definitions as $key => $value) {
       if ($value instanceof ContentEntityType) {
-        $baseFields = $this->entityFieldManager->getBaseFieldDefinitions($key);
         $label = $value->getLabel();
-        if (array_key_exists("changed", $baseFields)) {
+        if ($label) {
           $options[$key] = $label;
-        }
-        else {
-          $optionsNotChange[$key] = $label;
         }
       }
     }
     asort($options);
-    return ["options" => $options, "optionsNotChange" => $optionsNotChange];
+    return $options;
   }
 
 }

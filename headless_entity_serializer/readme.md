@@ -23,7 +23,22 @@ ddev exec drush en headless_entity_serializer
 Navigate to **Admin > Configuration > Entity Serialization Settings** (`/admin/config/headless-entity-serializer`):
 
 1. **Destination Directory**: Path where JSON files will be saved (e.g., `public://exported_entities`). Drupal must have write permissions to this directory.
-2. **Entity Types**: Select which entity types to serialize.
+2. **Entity Types to Serialize**: Entity types to serialize as top-level JSON files.
+3. **Entity Types to Serialize Inline**: Entity types to serialize as part of their referencing entity.
+
+### Entity Types vs Entity Types Inline
+
+Both options generate independent JSON files for each entity. The difference is **how the entity is discovered** for export:
+
+| | Entity Types to Serialize | Entity Types to Serialize Inline |
+|---|---|---|
+| **JSON file** | `entity_type/id/langcode.json` | `entity_type/id/langcode.json` (same) |
+| **Discovery** | Directly iterated by the generator | Discovered through entity reference fields of the parent |
+| **Incremental update** | Processed independently | Only processed if the parent entity is also re-exported |
+
+**Example:** A `paragraph` configured as *inline* gets its own JSON file (`paragraph/1.json`), but it is only exported when a parent `node` that references it is processed. If the paragraph changes and the parent does not, the paragraph's file will **not** be updated during an incremental run.
+
+**Typical usage:** Use *Entity Types to Serialize* for main content types consumed directly by the frontend (`node`, `taxonomy_term`, custom ECK types). Use *Entity Types to Serialize Inline* for dependent entities that always live inside another entity (`paragraph`, `block_content`).
 
 ## Drush Commands
 

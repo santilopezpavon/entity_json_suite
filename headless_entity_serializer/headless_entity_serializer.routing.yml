@@ -5,3 +5,11 @@ headless_entity_serializer.settings_form:
     _title: 'Entity Serialization Configuration'
   requirements:
     _permission: 'administer headless entity serializer'
+
+headless_entity_serializer.tracking:
+  path: '/admin/config/headless-entity-serializer/tracking'
+  defaults:
+    _controller: '\Drupal\headless_entity_serializer\Controller\TrackingController::listing'
+    _title: 'Entity Change Tracking'
+  requirements:
+    _permission: 'administer headless entity serializer'

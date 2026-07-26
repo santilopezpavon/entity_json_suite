@@ -1,4 +1,9 @@
 services:
+  headless_entity_serializer.entity_tracking:
+    class: Drupal\headless_entity_serializer\Services\EntityTrackingService
+    arguments:
+      - '@database'
+      - '@config.factory'
   headless_entity_serializer.alias_bucket_manager:
     class: Drupal\headless_entity_serializer\Services\Alias\AliasBucketManager
     arguments:
@@ -28,3 +33,4 @@ services:
       - '@logger.factory'
       - '@entity_type.manager'
       - '@language_manager'
+      - '@database'
