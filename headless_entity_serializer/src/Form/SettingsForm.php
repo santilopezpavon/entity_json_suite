@@ -106,7 +106,7 @@ class SettingsForm extends ConfigFormBase {
     $form['entity_types'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Entity Types to Serialize'),
-      '#description' => $this->t('Select the entity types you want to serialize as top-level JSON files.'),
+      '#description' => $this->t('Entity types exported directly to JSON files. These are processed independently by the generator and updated during incremental runs even when only the entity itself changes. Use for main content types consumed by the frontend (e.g. node, taxonomy_term, custom ECK types).'),
       '#options' => $content_types,
       '#default_value' => $config->get('entity_types') ?: [],
     ];
@@ -114,7 +114,7 @@ class SettingsForm extends ConfigFormBase {
     $form['entity_types_inline'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Entity Types to Serialize Inline'),
-      '#description' => $this->t('Select the entity types to serialize as part of their referencing entity, rather than as separate JSON files.'),
+      '#description' => $this->t('Entity types exported to their own JSON files, but discovered through entity reference fields of their parent. They are only re-exported when the referencing entity is processed. If an inline entity changes without its parent, the JSON file will NOT be updated during incremental runs. Use for dependent entities like paragraphs or block_content.'),
       '#options' => $content_types,
       '#default_value' => $config->get('entity_types_inline') ?: [],
     ];
