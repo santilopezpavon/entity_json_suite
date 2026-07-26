@@ -1,4 +1,4 @@
 node_server_json/
 go_server_json/
+node-server/node_modules/*
 node-server/.env
-node-server/node_modules

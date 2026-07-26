@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\headless_entity_serializer\Services\Generator;
 
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
@@ -67,6 +68,13 @@ class GeneratorService {
   protected $languageManager;
 
   /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $database;
+
+  /**
    * Constructs a new GeneratorService object.
    *
    * @param \Drupal\headless_entity_serializer\Services\Storage\FileStorageManager $file_storage_manager
@@ -83,6 +91,8 @@ class GeneratorService {
    *   The entity type manager.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   The language manager.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
    */
   public function __construct(
     $file_storage_manager,
@@ -92,6 +102,7 @@ class GeneratorService {
     LoggerChannelFactoryInterface $logger_factory,
     $entity_type_manager,
     LanguageManagerInterface $language_manager,
+    Connection $database,
   ) {
     $this->fileStorageManager = $file_storage_manager;
     $this->configFactory = $config_factory;
@@ -100,6 +111,7 @@ class GeneratorService {
     $this->logger = $logger_factory->get('headless_entity_serializer');
     $this->entityTypeManager = $entity_type_manager;
     $this->languageManager = $language_manager;
+    $this->database = $database;
   }
 
   /**
@@ -155,6 +167,10 @@ class GeneratorService {
       $this->fullGenerateEntityType($entityType);
     }
 
+    // Clear all tracking entries after full regeneration.
+    $this->database->delete('hes_entity_tracking')
+      ->execute();
+
     $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
 
     return [
@@ -166,8 +182,9 @@ class GeneratorService {
   /**
    * Performs an incremental update of serialized entity JSON files.
    *
-   * This command identifies new, updated, or deleted entities
-   * since the last incremental run and processes them.
+   * Uses the hes_entity_tracking table to identify entities that have been
+   * created, updated, or deleted since the last incremental run. This works
+   * regardless of whether the entity type has a "changed" base field.
    *
    * @return array
    *   An associative array with 'status' (bool) and 'message' (string).
@@ -183,23 +200,37 @@ class GeneratorService {
 
       $storage = $this->entityTypeManager->getStorage($entityType);
 
-      $changed_entity_ids = $storage->getQuery()->latestRevision()->accessCheck(FALSE)
-        ->condition("changed", $last_run_timestamp, '>')
-        ->execute();
+      // Get entity IDs with changes (inserts and updates) from tracking table.
+      $changed_entity_ids = $this->database->select('hes_entity_tracking', 't')
+        ->fields('t', ['entity_id'])
+        ->condition('t.entity_type_id', $entityType)
+        ->condition('t.changed', $last_run_timestamp, '>')
+        ->condition('t.operation', ['insert', 'update'], 'IN')
+        ->execute()
+        ->fetchCol();
 
-      $created_entity_ids = $storage->getQuery()->latestRevision()->accessCheck(FALSE)
-        ->condition('created', $last_run_timestamp, '>')
-        ->execute();
+      // Get entity IDs that were deleted since last run.
+      $deleted_entity_ids = $this->database->select('hes_entity_tracking', 't')
+        ->fields('t', ['entity_id'])
+        ->condition('t.entity_type_id', $entityType)
+        ->condition('t.changed', $last_run_timestamp, '>')
+        ->condition('t.operation', 'delete')
+        ->execute()
+        ->fetchCol();
 
-      $ids_to_process = array_unique(array_merge($changed_entity_ids, $created_entity_ids));
-      $totalEntities = count($ids_to_process);
+      // Process deleted entities first.
+      foreach ($deleted_entity_ids as $deleted_id) {
+        $this->fileStorageManager->deleteEntityDirectory($entityType, $deleted_id);
+      }
+
+      $totalEntities = count($changed_entity_ids);
       $this->logger->info('Init generation for entity type: {entityType}. Total exported: {count}.',
-      ['entityType' => $entityType, 'count' => count($ids_to_process)]);
+      ['entityType' => $entityType, 'count' => $totalEntities]);
 
       $progress = 0;
       $priorPercentage = 0;
 
-      foreach (array_chunk($ids_to_process, 100) as $chunk) {
+      foreach (array_chunk($changed_entity_ids, 100) as $chunk) {
         $entities = $storage->loadMultiple($chunk);
         foreach ($entities as $entity) {
           if ($entity instanceof ContentEntityInterface) {
@@ -227,6 +258,15 @@ class GeneratorService {
 
     }
 
+    // Clean processed tracking entries (non-delete operations).
+    $this->database->delete('hes_entity_tracking')
+      ->condition('changed', $current_timestamp, '<=')
+      ->condition('operation', 'delete', '!=')
+      ->execute();
+
+    // Keep delete tracking entries until the next full generation,
+    // so orphaned files can still be cleaned up if incremental runs
+    // multiple times before a full regeneration.
     $this->state->set('headless_entity_serializer.last_incremental_run', $current_timestamp);
 
     return [
@@ -253,7 +293,10 @@ class GeneratorService {
   public function removeFileNotInDataBase($storage, $entity_type_id) {
 
     // Remove deleted entities.
-    $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE);
+    $query = $storage->getQuery()->accessCheck(FALSE);
+    if ($storage->getEntityType()->isRevisionable()) {
+      $query->latestRevision();
+    }
     $current_db_ids = $query->execute();
     $serialized_files_info = $this->fileStorageManager->getEntitiesInFiles($entity_type_id);
     $serialized_entity_ids = array_keys($serialized_files_info);

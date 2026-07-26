@@ -10,3 +10,9 @@ headless_entity_serializer.settings_form:
   description: 'Configure entity types to serialize and destination directory.'
   route_name: headless_entity_serializer.settings_form
   parent: entity_json_suite
+
+headless_entity_serializer.tracking:
+  title: 'Change Tracking'
+  description: 'View entity change tracking records for incremental generation.'
+  route_name: headless_entity_serializer.tracking
+  parent: entity_json_suite
