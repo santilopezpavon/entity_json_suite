@@ -293,7 +293,10 @@ class GeneratorService {
   public function removeFileNotInDataBase($storage, $entity_type_id) {
 
     // Remove deleted entities.
-    $query = $storage->getQuery()->latestRevision()->accessCheck(FALSE);
+    $query = $storage->getQuery()->accessCheck(FALSE);
+    if ($storage->getEntityType()->isRevisionable()) {
+      $query->latestRevision();
+    }
     $current_db_ids = $query->execute();
     $serialized_files_info = $this->fileStorageManager->getEntitiesInFiles($entity_type_id);
     $serialized_entity_ids = array_keys($serialized_files_info);
