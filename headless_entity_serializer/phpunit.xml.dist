@@ -13,6 +13,7 @@
   <testsuites>
     <testsuite name="unit">
       <directory>tests/src/Unit</directory>
+      <directory>../entity_json_menu/tests/src/Unit</directory>
       <directory>../entity_json_serving/tests/src/Unit</directory>
     </testsuite>
     <testsuite name="kernel">

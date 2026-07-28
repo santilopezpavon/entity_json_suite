@@ -114,13 +114,13 @@ class MenuExportSettingsForm extends ConfigFormBase {
           '#default_value' => $checked,
         ],
         'name' => [
-          '#plain_text' => $menu_entity->label(),
+          '#plain_text' => (string) $menu_entity->label(),
         ],
         'machine_name' => [
           '#plain_text' => $menu_id,
         ],
         'description' => [
-          '#plain_text' => $menu_entity->getDescription(),
+          '#plain_text' => (string) $menu_entity->getDescription(),
         ],
         'path' => [
           '#plain_text' => '/json/menus/' . $menu_id,

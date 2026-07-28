@@ -62,6 +62,9 @@ ddev exec drush hes-incremental
 # Resetear estado del incremental (fuerza regenerar todo en el próximo incremental)
 ddev exec drush hes-reset-state
 
+# Exportar menús como JSON estático
+ddev exec drush hem-export
+
 # Exportar vistas como JSON estático
 ddev exec drush hev-export
 ```
@@ -83,6 +86,19 @@ ddev exec composer test:kernel
 entity_json_suite/
 ├── headless_entity_serializer/          # Módulo base: generación JSON
 │   └── src/Services/Storage/FileStorageManager.php  # + getEntityFilePath()
+│
+├── entity_json_menu/                  # Módulo exportación de menús
+│   ├── src/
+│   │   ├── Controller/MenuExportController.php    # GET /json/menus/{menu_id}
+│   │   ├── Form/MenuExportSettingsForm.php        # Admin config
+│   │   ├── Services/MenuExporter.php              # Export service
+│   │   └── Commands/MenuExportCommands.php        # drush hem-export
+│   ├── config/schema/entity_json_menu.schema.yml
+│   ├── entity_json_menu.info.yml
+│   ├── entity_json_menu.permissions.yml
+│   ├── entity_json_menu.routing.yml
+│   ├── entity_json_menu.services.yml
+│   └── drush.services.yml
 │
 ├── entity_json_serving/               # Módulo serving HTTP
 │   ├── src/

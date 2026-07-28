@@ -10,6 +10,7 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Menu\MenuLinkTreeInterface;
 use Drupal\Core\Menu\MenuTreeParameters;
+use Psr\Log\LoggerInterface;
 
 /**
  * Exports configured menus as static JSON files with recursive tree structure.
@@ -38,10 +39,8 @@ class MenuExporter {
 
   /**
    * The logger channel.
-   *
-   * @var \Psr\Log\LoggerInterface
    */
-  protected $logger;
+  protected LoggerInterface $logger;
 
   /**
    * Constructs a new MenuExporter.
@@ -124,7 +123,7 @@ class MenuExporter {
     $data = [
       'menu' => [
         'id' => $menu_entity->id(),
-        'label' => $menu_entity->label(),
+        'label' => (string) $menu_entity->label(),
         'description' => $menu_entity->getDescription(),
       ],
       'tree' => $tree_data,

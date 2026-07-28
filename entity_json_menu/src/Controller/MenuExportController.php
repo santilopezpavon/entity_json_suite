@@ -7,7 +7,6 @@ namespace Drupal\entity_json_menu\Controller;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\entity_json_menu\Services\MenuExporter;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,21 +29,14 @@ class MenuExportController implements ContainerInjectionInterface {
   protected MenuExporter $menuExporter;
 
   /**
-   * The logger channel.
-   */
-  protected LoggerInterface $logger;
-
-  /**
    * Constructs a new MenuExportController.
    */
   public function __construct(
     FileSystemInterface $file_system,
     MenuExporter $menu_exporter,
-    LoggerInterface $logger,
   ) {
     $this->fileSystem = $file_system;
     $this->menuExporter = $menu_exporter;
-    $this->logger = $logger;
   }
 
   /**
@@ -54,7 +46,6 @@ class MenuExportController implements ContainerInjectionInterface {
     return new static(
       $container->get('file_system'),
       $container->get('entity_json_menu.exporter'),
-      $container->get('logger.factory')->get('entity_json_menu'),
     );
   }
 
